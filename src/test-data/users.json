@@ -1,0 +1,13 @@
+{
+  "validUser": {
+    "mobileNumber": "9123456789",
+    "otp": "123456"
+  },
+  "testUsers": [
+    {
+      "mobileNumber": "9123456789",
+      "otp": "123456",
+      "description": "Valid test user"
+    }
+  ]
+}
