@@ -1,296 +1,181 @@
+// src/pages/products.page.ts - Updated with correct selectors
 import { BasePage } from './base.page';
 import { browser } from '@wdio/globals';
-import { SwipeUtils } from '../utils/swipe.utils';
 
 export class ProductsPage extends BasePage {
-  // Selectors
-  private get popularProductsSection() {
-    return '//android.view.View[@content-desc="Popular Products"]';
-  }
-
-  private get cartTab() {
-    return '//android.widget.Button[@content-desc="Cart\nTab 3 of 5"]';
-  }
-
-  // Alternative cart selectors
-  private get cartTabAlternative() {
-    return '//android.widget.Button[contains(@content-desc, "Cart")]';
-  }
-
-  private get homeTab() {
-    return '//android.widget.Button[@content-desc="Home\nTab 1 of 5"]';
-  }
-
-  // Get single add button by index
+  // Correct selectors based on your input
   private getAddButtonByIndex(index: number) {
-    return `(//android.widget.Button[@content-desc="+"])[${index}]`;
+    return `(//android.view.View[@content-desc="Add"])[${index}]`;
   }
 
-  // Helper method to scroll to Popular Products section
-  async scrollToPopularProducts() {
-    console.log("Scrolling to Popular Products section...");
-    
-    const maxScrolls = 5;
-    let scrollCount = 0;
-    
-    while (scrollCount < maxScrolls) {
-      const isVisible = await this.isElementExisting(this.popularProductsSection);
-      if (isVisible) {
-        console.log("✓ Popular Products section found");
-        await browser.pause(1500);
-        return true;
-      }
-      
-      await SwipeUtils.swipeUp(0.3);
-      await browser.pause(1000);
-      scrollCount++;
-    }
-    
-    console.log("❌ Popular Products section not found after scrolling");
-    return false;
+  // Dynamic selectors for + and - buttons based on product description
+  private getProductPlusButton(productDesc: string) {
+    return `//android.view.View[contains(@content-desc, "${productDesc}")]/android.view.View[2]`;
   }
 
-  // Swipe products using exact coordinates from Appium Inspector
-  async swipeProductsLeft() {
-    console.log("Swiping left on product cards...");
+  private getProductMinusButton(productDesc: string) {
+    return `//android.view.View[contains(@content-desc, "${productDesc}")]/android.view.View[1]`;
+  }
+
+  // Generic selectors for first visible product controls
+  private get firstProductPlusButton() {
+    return '(//android.view.View[contains(@content-desc, "₹") and contains(@content-desc, "Save")]/android.view.View[2])[1]';
+  }
+
+  private get firstProductMinusButton() {
+    return '(//android.view.View[contains(@content-desc, "₹") and contains(@content-desc, "Save")]/android.view.View[1])[1]';
+  }
+
+  // View cart selector
+  private get viewCartButton() {
+    return '//android.view.View[contains(@content-desc, "Cart Total")]';
+  }
+
+  // Swipe up on home page using exact coordinates
+  async swipeUpToSeeProducts() {
+    console.log("Swiping up to see products...");
     
     try {
-      // Using the exact coordinates from your Appium Inspector recording
-      await SwipeUtils.swipeLeftExact(933, 1285, 185, 1281, 1000);
+      // Using your exact coordinates
+      await browser.action('pointer')
+        .move({ duration: 0, x: 542, y: 1375 })
+        .down({ button: 0 })
+        .move({ duration: 1000, x: 563, y: 692 })
+        .up({ button: 0 })
+        .perform();
       
       console.log("✓ Swipe completed");
-      await browser.pause(2500); // Increased wait time for products to load
-      return true;
-      
+      await browser.pause(2000);
     } catch (error) {
-      console.log("Swipe failed:", error);
-      return false;
-    }
-  }
-
-  // Alternative swipe method if coordinates change
-  async swipeProductsLeftAlternative() {
-    console.log("Trying alternative swipe method...");
-    
-    try {
+      console.error("Swipe failed:", error);
+      // Fallback to percentage-based swipe
       const { width, height } = await browser.getWindowSize();
-      
-      // Calculate relative positions based on screen size
-      const startX = Math.floor(width * 0.9);  // 90% from left
-      const endX = Math.floor(width * 0.1);    // 10% from left
-      const yPosition = Math.floor(height * 0.65); // 65% from top
-      
-      await SwipeUtils.swipeLeftExact(startX, yPosition, endX, yPosition, 1000);
-      
-      console.log("✓ Alternative swipe completed");
-      await browser.pause(2500);
-      return true;
-      
-    } catch (error) {
-      console.log("Alternative swipe failed:", error);
-      return false;
+      await browser.action('pointer')
+        .move({ duration: 0, x: width / 2, y: height * 0.8 })
+        .down({ button: 0 })
+        .move({ duration: 1000, x: width / 2, y: height * 0.3 })
+        .up({ button: 0 })
+        .perform();
+      await browser.pause(2000);
     }
   }
 
-  // Verify swipe was successful by checking if products changed
-  async verifySwipeSuccess(previousProducts: number): Promise<boolean> {
-    await browser.pause(1000);
-    const currentProducts = await this.getVisibleAddButtonCount();
-    
-    // If we still have products visible after swipe, it's likely successful
-    if (currentProducts > 0) {
-      console.log(`✓ Swipe verified: ${currentProducts} products visible`);
-      return true;
-    }
-    
-    return false;
-  }
+  // Add products one by one with stability checks
+  async addProducts(count: number): Promise<number> {
+    console.log(`\n=== Adding ${count} products ===`);
+    let addedCount = 0;
 
-  // Count visible add buttons
-  async getVisibleAddButtonCount(): Promise<number> {
-    let count = 0;
-    const maxButtons = 10;
-    
-    for (let i = 1; i <= maxButtons; i++) {
-      const selector = this.getAddButtonByIndex(i);
-      const exists = await this.isElementExisting(selector);
-      if (exists) {
-        count++;
-      } else {
-        break;
+    for (let i = 1; i <= count; i++) {
+      try {
+        const selector = this.getAddButtonByIndex(i);
+        
+        // Wait for button to be visible
+        await browser.pause(500);
+        const exists = await this.isElementExisting(selector);
+        
+        if (exists) {
+          console.log(`Adding product ${i}...`);
+          const addButton = await browser.$(selector);
+          await addButton.click();
+          await browser.pause(1500);
+          addedCount++;
+          console.log(`✓ Product ${i} added`);
+          await this.takeScreenshot(`product-${i}-added`);
+        } else {
+          console.log(`Product ${i} Add button not found`);
+        }
+      } catch (error) {
+        console.log(`Failed to add product ${i}:`, error);
       }
     }
-    
-    return count;
+
+    console.log(`\nTotal products added: ${addedCount}`);
+    return addedCount;
   }
 
-  // Add single product with stability
-  async addSingleProduct(index: number): Promise<boolean> {
+  // Delete products using the exact minus button xpath pattern
+  async deleteProducts(positions: number[]): Promise<number> {
+    console.log(`\n=== Deleting products at positions: ${positions.join(', ')} ===`);
+    let deletedCount = 0;
+
+    for (const position of positions) {
+      try {
+        // Find the minus button for products that have been added (they will have the price info)
+        const minusButtonXpath = `(//android.view.View[contains(@content-desc, "₹") and contains(@content-desc, "Save")]/android.view.View[1])[${position}]`;
+        
+        const exists = await this.isElementExisting(minusButtonXpath);
+        if (exists) {
+          console.log(`Deleting product at position ${position}...`);
+          const minusButton = await browser.$(minusButtonXpath);
+          await minusButton.click();
+          await browser.pause(1500);
+          deletedCount++;
+          console.log(`✓ Product deleted`);
+          await this.takeScreenshot(`product-position-${position}-deleted`);
+        } else {
+          console.log(`Minus button not found at position ${position}`);
+        }
+      } catch (error) {
+        console.log(`Failed to delete product at position ${position}:`, error);
+      }
+    }
+
+    console.log(`\nTotal products deleted: ${deletedCount}`);
+    return deletedCount;
+  }
+
+  // Increase product quantity with exact xpath pattern
+  async increaseProductQuantity(position: number, increaseBy: number): Promise<boolean> {
+    console.log(`\n=== Increasing quantity of product at position ${position} by ${increaseBy} ===`);
+    
     try {
-      const buttonSelector = this.getAddButtonByIndex(index);
-      const exists = await this.isElementExisting(buttonSelector);
+      // Using the exact xpath pattern for plus button
+      const plusButtonXpath = `(//android.view.View[contains(@content-desc, "₹") and contains(@content-desc, "Save")]/android.view.View[2])[${position}]`;
       
+      const exists = await this.isElementExisting(plusButtonXpath);
       if (!exists) {
-        console.log(`Button ${index} not found`);
+        console.log("Plus button not found");
         return false;
       }
+
+      const plusButton = await browser.$(plusButtonXpath);
       
-      console.log(`Clicking add button ${index}...`);
-      await this.clickElement(buttonSelector);
+      for (let i = 0; i < increaseBy; i++) {
+        console.log(`Clicking plus button (${i + 1}/${increaseBy})...`);
+        await plusButton.click();
+        await browser.pause(1000);
+      }
       
-      // Wait for product to be added
-      await browser.pause(2000);
-      
-      console.log(`✓ Product added successfully`);
+      console.log(`✓ Increased quantity by ${increaseBy}`);
+      await this.takeScreenshot(`product-quantity-increased-${position}`);
       return true;
-      
     } catch (error) {
-      console.log(`Failed to add product ${index}:`, error);
+      console.log(`Failed to increase quantity:`, error);
       return false;
     }
   }
 
-  // Add exactly 5 products with improved swipe pattern
-  async addFiveProductsWithSwipes(): Promise<number> {
-    console.log(`\n=== Adding 5 products with swipe pattern ===`);
+  // Click View Cart
+  async clickViewCart(): Promise<boolean> {
+    console.log("\n=== Clicking View Cart ===");
     
-    // Ensure we're at Popular Products
-    const foundSection = await this.scrollToPopularProducts();
-    if (!foundSection) {
-      throw new Error("Could not find Popular Products section");
-    }
-    
-    await browser.pause(2000);
-    
-    let totalAdded = 0;
-    let swipeCount = 0;
-    const targetProducts = 5;
-    
-    // Step 1: Add first 2 products from initial view
-    console.log("\n📦 Step 1: Adding first 2 products from initial view");
-    const initialCount = await this.getVisibleAddButtonCount();
-    console.log(`Found ${initialCount} products in initial view`);
-    
-    // Add product 1
-    if (await this.addSingleProduct(1)) {
-      totalAdded++;
-      console.log(`✅ Product ${totalAdded}/${targetProducts} added`);
-      await browser.saveScreenshot(`./screenshots/product-${totalAdded}-added.png`);
-    }
-    
-    await browser.pause(1500);
-    
-    // Add product 2
-    if (await this.addSingleProduct(2)) {
-      totalAdded++;
-      console.log(`✅ Product ${totalAdded}/${targetProducts} added`);
-      await browser.saveScreenshot(`./screenshots/product-${totalAdded}-added.png`);
-    }
-    
-    await browser.pause(2000);
-    
-    // Continue adding products with swipes until we reach 5
-    while (totalAdded < targetProducts && swipeCount < 5) {
-      swipeCount++;
-      console.log(`\n📦 Swipe ${swipeCount}: Attempting to add product ${totalAdded + 1}`);
+    try {
+      await browser.pause(1000);
+      const viewCartExists = await this.isElementExisting(this.viewCartButton);
       
-      await browser.saveScreenshot(`./screenshots/before-swipe-${swipeCount}.png`);
-      
-      // Try main swipe first
-      let swipeSuccess = await this.swipeProductsLeft();
-      
-      // If main swipe fails, try alternative
-      if (!swipeSuccess) {
-        console.log("Main swipe failed, trying alternative method...");
-        swipeSuccess = await this.swipeProductsLeftAlternative();
+      if (!viewCartExists) {
+        console.log("View Cart button not found");
+        return false;
       }
-      
-      if (swipeSuccess) {
-        console.log(`✓ Swipe ${swipeCount} completed`);
-        await browser.saveScreenshot(`./screenshots/after-swipe-${swipeCount}.png`);
-        
-        // Verify swipe was successful
-        const productsVisible = await this.getVisibleAddButtonCount();
-        console.log(`Found ${productsVisible} products after swipe`);
-        
-        if (productsVisible > 0) {
-          // Try to add the first visible product
-          if (await this.addSingleProduct(1)) {
-            totalAdded++;
-            console.log(`✅ Product ${totalAdded}/${targetProducts} added after swipe ${swipeCount}`);
-            await browser.saveScreenshot(`./screenshots/product-${totalAdded}-added.png`);
-          } else {
-            // If first button fails, try second
-            console.log("First button failed, trying second...");
-            if (await this.addSingleProduct(2)) {
-              totalAdded++;
-              console.log(`✅ Product ${totalAdded}/${targetProducts} added (second button) after swipe ${swipeCount}`);
-              await browser.saveScreenshot(`./screenshots/product-${totalAdded}-added.png`);
-            }
-          }
-        } else {
-          console.log("❌ No products visible after swipe");
-        }
-      } else {
-        console.log(`❌ Swipe ${swipeCount} failed`);
-      }
-      
-      await browser.pause(2000);
-    }
-    
-    // If we still don't have 5 products, try adding from current view
-    if (totalAdded < targetProducts) {
-      console.log(`\n⚠️ Only ${totalAdded} products added. Trying to add more from current view...`);
-      
-      const currentProducts = await this.getVisibleAddButtonCount();
-      console.log(`Found ${currentProducts} products in current view`);
-      
-      // Try to add remaining products
-      for (let i = 1; i <= currentProducts && totalAdded < targetProducts; i++) {
-        if (await this.addSingleProduct(i)) {
-          totalAdded++;
-          console.log(`✅ Product ${totalAdded}/${targetProducts} added from current view`);
-          await browser.saveScreenshot(`./screenshots/product-${totalAdded}-added.png`);
-          await browser.pause(1500);
-        }
-      }
-    }
-    
-    console.log(`\n✅ Total products added: ${totalAdded}/${targetProducts}`);
-    
-    return totalAdded;
-  }
 
-  // Navigate to cart with stability
-  async goToCart() {
-    console.log("\nNavigating to cart...");
-    
-    // First ensure we're in a stable state
-    await browser.pause(2000);
-    
-    // Try scrolling down first to ensure navigation is visible
-    await SwipeUtils.swipeDown(0.3);
-    await browser.pause(1500);
-    
-    // Look for cart tab
-    let cartFound = await this.isElementExisting(this.cartTab);
-    
-    if (cartFound) {
-      await this.clickElement(this.cartTab);
-      console.log("✓ Clicked Cart tab");
+      const viewCartBtn = await browser.$(this.viewCartButton);
+      await viewCartBtn.click();
+      console.log("✓ View Cart clicked");
       await browser.pause(3000);
       return true;
+    } catch (error) {
+      console.log("Failed to click View Cart:", error);
+      return false;
     }
-    
-    // Try alternative selector
-    const altCart = await this.isElementExisting(this.cartTabAlternative);
-    if (altCart) {
-      await this.clickElement(this.cartTabAlternative);
-      console.log("✓ Clicked Cart tab (alternative)");
-      await browser.pause(3000);
-      return true;
-    }
-    
-    throw new Error("Could not find Cart tab");
   }
 }

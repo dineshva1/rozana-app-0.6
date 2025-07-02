@@ -17,9 +17,9 @@ describe("App Complete Test Suite", () => {
   // Import and run all flow tests in order
   require("../flows/home.flow.spec");
   require("../flows/login.flow.spec");
-  // require("../flows/shopping.flow.spec");
+  require("../flows/search.flow.spec");
+  require("../flows/shopping.flow.spec");
   // require("../flows/categories.flow.spec");
-  // require("../flows/search.flow.spec");
   // require("../flows/featured-products.flow.spec");
 
   after(async () => {
@@ -35,11 +35,11 @@ describe("App Complete Test Suite", () => {
     // Summary of tests
     console.log("\nTest Summary:");
     console.log("- Home Page Verification ✓");
-    // console.log("- Login Flow ✓");
-    // console.log("- Shopping Flow ✓");
-    console.log("- Categories Flow ✓");
+    console.log("- Login Flow ✓");
     console.log("- Search Flow ✓");
-    console.log("- Featured Products Flow ✓");
+    // console.log("- Shopping Flow ✓");
+    // console.log("- Categories Flow ✓");
+    // console.log("- Featured Products Flow ✓");
     console.log("\n");
   });
 });

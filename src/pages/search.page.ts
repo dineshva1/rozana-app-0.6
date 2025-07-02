@@ -1,17 +1,24 @@
+// src/pages/search.page.ts
 import { $ } from "@wdio/globals";
 import { BasePage } from "./base.page";
+import { browser } from "@wdio/globals";
 
 export class SearchPage extends BasePage {
   private readonly searchItems = ["oil", "sugar", "biscuit", "soap"];
   
-  // Selectors as strings
-  private readonly searchBarSelector = 'android.widget.EditText';
-  private readonly clearSearchButtonSelector = '//android.widget.EditText/../android.widget.Button';
-  private readonly goBackButtonSelector = '//android.widget.FrameLayout[@resource-id="android:id/content"]/android.widget.FrameLayout/android.view.View/android.view.View/android.view.View/android.view.View/android.view.View[1]/android.widget.Button';
-  private readonly firstAddButtonSelector = 'android=new UiSelector().description("+").instance(0)';
+  // Updated selectors for new UI
+  private readonly searchBarHomeSelector = '//android.view.View[@content-desc="Search for Store / Groceries & Essentials....."]';
+  private readonly searchInputSelector = 'android.widget.EditText';
+  private readonly clearSearchButtonSelector = '~Clear';
+  private readonly goBackButtonSelector = '//android.widget.FrameLayout[@resource-id="android:id/content"]/android.widget.FrameLayout/android.view.View/android.view.View/android.view.View/android.view.View[1]/android.widget.Button';
+  private readonly addButtonSelector = '//android.view.View[@content-desc="Add"]';
   
-  get searchBar() {
-    return $(this.searchBarSelector);
+  get searchBarHome() {
+    return $(this.searchBarHomeSelector);
+  }
+  
+  get searchInput() {
+    return $(this.searchInputSelector);
   }
   
   get clearSearchButton() {
@@ -23,40 +30,43 @@ export class SearchPage extends BasePage {
   }
   
   getFirstAddButton() {
-    return $(this.firstAddButtonSelector);
+    return $(`(${this.addButtonSelector})[1]`);
   }
   
-  async clickSearchBar() {
-    console.log("Clicking on search bar...");
-    await this.waitForElement(this.searchBarSelector);
-    const searchBar = await this.searchBar;
+  async clickSearchBarFromHome() {
+    console.log("Clicking on search bar from home page...");
+    await this.waitForElement(this.searchBarHomeSelector);
+    const searchBar = await this.searchBarHome;
     await searchBar.click();
     await browser.pause(1500);
   }
   
   async enterSearchText(text: string) {
     console.log(`Entering search text: ${text}`);
-    const searchBar = await this.searchBar;
-    await searchBar.clearValue();
-    await searchBar.setValue(text);
+    await this.waitForElement(this.searchInputSelector);
+    const searchInput = await this.searchInput;
+    await searchInput.clearValue();
+    await searchInput.setValue(text);
     await browser.pause(1000);
   }
   
   async pressEnterKey() {
     console.log("Pressing Enter key...");
     await browser.pressKeyCode(66); // 66 is the key code for Enter
-    await browser.pause(2000); // Wait for search results
+    await browser.pause(2500); // Wait for search results
   }
   
   async selectFirstProduct() {
-    console.log("Selecting first product...");
+    console.log("Looking for Add button...");
     
     try {
-      // Wait for the add button to be present
-      await this.waitForElement(this.firstAddButtonSelector);
+      // Wait a bit for results to load
+      await browser.pause(1000);
+      
+      // Try to find the first Add button
       const addButton = await this.getFirstAddButton();
       
-      if (await addButton.isExisting()) {
+      if (await addButton.isExisting() && await addButton.isDisplayed()) {
         await addButton.click();
         console.log("✓ First product added");
         await browser.pause(1500);
@@ -71,11 +81,14 @@ export class SearchPage extends BasePage {
     }
   }
   
-  async clearSearch() {
-    console.log("Clearing search...");
-    const searchBar = await this.searchBar;
-    await searchBar.click();
-    await searchBar.clearValue();
+  async clearSearchField() {
+    console.log("Clearing search field...");
+    const searchInput = await this.searchInput;
+    await searchInput.click();
+    await browser.pause(500);
+    
+    // Clear the value
+    await searchInput.clearValue();
     await browser.pause(500);
   }
   
@@ -83,8 +96,8 @@ export class SearchPage extends BasePage {
     let successfulAdds = 0;
     
     try {
-      // Click on search bar
-      await this.clickSearchBar();
+      // Click on search bar from home page
+      await this.clickSearchBarFromHome();
       await browser.saveScreenshot('./screenshots/search-01-search-bar-clicked.png');
       
       // Process each search item
@@ -109,7 +122,7 @@ export class SearchPage extends BasePage {
         
         // Clear search for next item (except for last item)
         if (i < this.searchItems.length - 1) {
-          await this.clearSearch();
+          await this.clearSearchField();
         }
       }
       
@@ -123,6 +136,14 @@ export class SearchPage extends BasePage {
     } catch (error) {
       console.error("Error in search and add products:", error);
       await browser.saveScreenshot('./screenshots/search-error.png');
+      
+      // Try to recover
+      try {
+        await this.goBackFromSearch();
+      } catch (recoveryError) {
+        console.log("Recovery failed:", recoveryError);
+      }
+      
       throw error;
     }
   }
@@ -131,20 +152,22 @@ export class SearchPage extends BasePage {
     console.log("\nGoing back from search...");
     
     try {
-      // First try the go back button
+      // Use the specific go back button selector
+      await this.waitForElement(this.goBackButtonSelector, 5000);
       const goBackBtn = await this.goBackButton;
-      if (await goBackBtn.isExisting()) {
+      
+      if (await goBackBtn.isExisting() && await goBackBtn.isDisplayed()) {
         await goBackBtn.click();
         console.log("✓ Clicked go back button");
         await browser.pause(2000);
       } else {
         // Alternative: Use device back button
+        console.log("Go back button not found, using device back button");
         await browser.back();
-        console.log("✓ Used device back button");
         await browser.pause(2000);
       }
     } catch (error) {
-      console.log("Error going back, trying device back button:", error);
+      console.log("Error with go back button, using device back button:", error);
       await browser.back();
       await browser.pause(2000);
     }

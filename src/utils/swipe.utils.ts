@@ -96,4 +96,30 @@ export class SwipeUtils {
     await browser.releaseActions();
     await browser.pause(1000);
   }
+   static async swipeExactCoordinates(
+    startX: number, 
+    startY: number, 
+    endX: number, 
+    endY: number, 
+    duration: number = 1000
+  ) {
+    try {
+      await browser.action('pointer')
+        .move({ duration: 0, x: startX, y: startY })
+        .down({ button: 0 })
+        .move({ duration: duration, x: endX, y: endY })
+        .up({ button: 0 })
+        .perform();
+      
+      console.log(`✓ Swiped from (${startX}, ${startY}) to (${endX}, ${endY})`);
+    } catch (error) {
+      console.error('Swipe failed:', error);
+      throw error;
+    }
+  }
+  
+  // Your specific swipe for products
+  static async swipeUpForProducts() {
+    await this.swipeExactCoordinates(542, 1375, 563, 692, 1000);
+  }
 }

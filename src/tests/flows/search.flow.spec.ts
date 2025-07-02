@@ -59,6 +59,13 @@ describe("Search Flow", () => {
         console.log("Attempting to recover and navigate to home...");
         await browser.back();
         await TestHelpers.waitForApp(2000);
+        
+        // Check if we need another back press
+        const isHome = await homePage.isHomePageDisplayed();
+        if (!isHome) {
+          await browser.back();
+          await TestHelpers.waitForApp(2000);
+        }
       } catch (recoveryError) {
         console.log("Recovery failed:", recoveryError);
       }
