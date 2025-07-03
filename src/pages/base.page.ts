@@ -158,39 +158,39 @@ export class BasePage {
     }
   }
 
-  async navigateToHome(): Promise<boolean> {
-    console.log("Navigating to home...");
+  // async navigateToHome(): Promise<boolean> {
+  //   console.log("Navigating to home...");
     
-    // List of possible home tab selectors
-    const homeTabSelectors = [
-      '//android.widget.Button[@content-desc="Home\nTab 1 of 5"]',
-      '//android.widget.Button[contains(@content-desc, "Home")]',
-      '//android.widget.Button[contains(@content-desc, "home")]',
-      '//android.view.View[@content-desc="Home"]',
-      '//android.widget.TextView[@text="Home"]',
-      '//android.widget.TextView[contains(@text, "Home")]'
-    ];
+  //   // List of possible home tab selectors
+  //   const homeTabSelectors = [
+  //     '//android.widget.Button[@content-desc="Home\nTab 1 of 5"]',
+  //     '//android.widget.Button[contains(@content-desc, "Home")]',
+  //     '//android.widget.Button[contains(@content-desc, "home")]',
+  //     '//android.view.View[@content-desc="Home"]',
+  //     '//android.widget.TextView[@text="Home"]',
+  //     '//android.widget.TextView[contains(@text, "Home")]'
+  //   ];
     
-    // Try each selector
-    for (const selector of homeTabSelectors) {
-      try {
-        const homeTab = await browser.$(selector);
-        if (await homeTab.isExisting()) {
-          console.log(`Found home tab with selector: ${selector.substring(0, 50)}...`);
-          await homeTab.click();
-          console.log("✓ Home tab clicked successfully");
-          await browser.pause(2500);
-          return true;
-        }
-      } catch (error) {
-        // Continue to next selector
-        continue;
-      }
-    }
+  //   // Try each selector
+  //   for (const selector of homeTabSelectors) {
+  //     try {
+  //       const homeTab = await browser.$(selector);
+  //       if (await homeTab.isExisting()) {
+  //         console.log(`Found home tab with selector: ${selector.substring(0, 50)}...`);
+  //         await homeTab.click();
+  //         console.log("✓ Home tab clicked successfully");
+  //         await browser.pause(2500);
+  //         return true;
+  //       }
+  //     } catch (error) {
+  //       // Continue to next selector
+  //       continue;
+  //     }
+  //   }
     
-    console.error("❌ Could not find home tab");
-    return false;
-  }
+  //   console.error("❌ Could not find home tab");
+  //   return false;
+  // }
 
   async navigateToCart(): Promise<boolean> {
     console.log("Navigating to cart...");
@@ -251,4 +251,43 @@ export class BasePage {
     }
     return false;
   }
+async navigateToHome(): Promise<boolean> {
+  console.log("Navigating to home...");
+  
+  // List of possible home tab selectors - UPDATED with newline
+  const homeTabSelectors = [
+    // New UI selectors with newline
+    '//android.widget.ImageView[@content-desc="Home\nTab 1 of 4"]',
+    // Alternative without ImageView in case it changes
+    '//*[@content-desc="Home\nTab 1 of 4"]',
+    // Old selectors for backward compatibility
+    '//android.widget.ImageView[@content-desc="Home Tab 1 of 4"]',
+    '//android.widget.Button[@content-desc="Home\nTab 1 of 5"]',
+    '//android.widget.Button[contains(@content-desc, "Home")]',
+    '//android.widget.Button[contains(@content-desc, "home")]',
+    '//android.view.View[@content-desc="Home"]',
+    '//android.widget.TextView[@text="Home"]',
+    '//android.widget.TextView[contains(@text, "Home")]'
+  ];
+  
+  // Try each selector
+  for (const selector of homeTabSelectors) {
+    try {
+      const homeTab = await browser.$(selector);
+      if (await homeTab.isExisting()) {
+        console.log(`Found home tab with selector: ${selector.substring(0, 50)}...`);
+        await homeTab.click();
+        console.log("✓ Home tab clicked successfully");
+        await browser.pause(2500);
+        return true;
+      }
+    } catch (error) {
+      // Continue to next selector
+      continue;
+    }
+  }
+  
+  console.error("❌ Could not find home tab");
+  return false;
+}
 }

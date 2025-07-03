@@ -1,3 +1,4 @@
+// src/pages/categories.page.ts
 import { BasePage } from './base.page';
 import { browser } from '@wdio/globals';
 import { SwipeUtils } from '../utils/swipe.utils';
@@ -5,56 +6,45 @@ import { SwipeUtils } from '../utils/swipe.utils';
 export class CategoriesPage extends BasePage {
   // Tab selectors
   private get categoriesTab() {
-    return '//android.widget.Button[@content-desc="Categories\nTab 2 of 5"]';
+    return '//android.widget.ImageView[@content-desc="Categories\nTab 2 of 4"]';
   }
 
-  // Add home tab selector
   private get homeTab() {
-    return '//android.widget.Button[@content-desc="Home\nTab 1 of 5"]';
+    return '//android.widget.ImageView[@content-desc="Home\nTab 1 of 4"]';
   }
 
-  // Category selectors
-  private get skincareCategory() {
-    return '//android.view.View[@content-desc="Skincare"]';
+  // "All" button selector - this is what we click to see all products
+  private getAllButtonByIndex(index: number) {
+    return `(//android.widget.ImageView[@content-desc="All"])[${index}]`;
   }
 
-  private get mobilesAndElectronicsCategory() {
-    return '//android.view.View[@content-desc="Mobiles and Electronics"]';
+  // Generic All button
+  private get allButton() {
+    return '//android.widget.ImageView[@content-desc="All"]';
   }
 
-  private get icecreamsCategory() {
-    return '//android.view.View[@content-desc="Kitchen and Dining"]';
-  }
-
-  // View All buttons with specific indices
-  private getViewAllButtonByIndex(index: number) {
-    return `(//android.widget.Button[@content-desc="View All"])[${index}]`;
-  }
-
-  // Subcategory selectors for Skincare
+  // Subcategory selectors
   private get sunscreenSubcategory() {
     return '//android.widget.ImageView[@content-desc="Sunscreen"]';
   }
 
-  // Product selectors
+  private get masksAndCleansersSubcategory() {
+    return '//android.widget.ImageView[@content-desc="Masks and cleansers"]';
+  }
+
+  // Add button selector
   private getAddButtonByIndex(index: number) {
-    return `(//android.widget.Button[@content-desc="+"])[${index}]`;
+    return `(//android.view.View[@content-desc="Add"])[${index}]`;
   }
 
-  // Back button selectors - multiple options
+  // Back button selector
   private get backButton() {
-    // Try a simpler selector first
-    return '(//android.widget.Button)[1]';
+    return '//android.widget.Button';
   }
 
-  private get backButtonAlternative() {
-    // Alternative back button selector
-    return '//android.view.View[1]/android.widget.Button[1]';
-  }
-
-  // Page title selector to verify we're on the right page
-  private get pageTitle() {
-    return '//android.widget.TextView';
+  // Category title selectors to verify which category we're viewing
+  private get skincareCategoryTitle() {
+    return '//android.widget.TextView[@text="Skincare"]';
   }
 
   // Navigation methods
@@ -66,12 +56,10 @@ export class CategoriesPage extends BasePage {
     console.log("✓ Categories tab opened");
   }
 
-  // Navigate to home tab
   async navigateToHome(): Promise<boolean> {
     try {
       console.log("Navigating to Home tab...");
       
-      // First check if home tab is visible
       const homeTabVisible = await this.isElementExisting(this.homeTab);
       
       if (homeTabVisible) {
@@ -81,11 +69,9 @@ export class CategoriesPage extends BasePage {
         return true;
       } else {
         console.log("Home tab not visible, trying to go back first");
-        // If not visible, we might be in a full-screen view
         await this.goBack();
         await browser.pause(1000);
         
-        // Try again
         const homeTabVisibleAfterBack = await this.isElementExisting(this.homeTab);
         if (homeTabVisibleAfterBack) {
           await this.clickElement(this.homeTab);
@@ -102,92 +88,45 @@ export class CategoriesPage extends BasePage {
     }
   }
 
-  // Go back method with multiple strategies
-  async goBack(): Promise<boolean> {
+  async clickAllButtonForCategory(categoryPosition: number) {
+    console.log(`Clicking "All" button for category at position ${categoryPosition}...`);
+    
     try {
-      console.log("Attempting to go back...");
+      const allButtonSelector = this.getAllButtonByIndex(categoryPosition);
+      await this.clickElement(allButtonSelector);
+      console.log(`✓ "All" button clicked for category ${categoryPosition}`);
       
-      // Strategy 1: Try the primary back button selector
-      const backButtonVisible = await this.isElementExisting(this.backButton);
-      
-      if (backButtonVisible) {
-        console.log("Back button found with primary selector");
-        await this.clickElement(this.backButton);
-        await browser.pause(2000);
-        console.log("✓ Back button clicked");
-        return true;
-      }
-      
-      // Strategy 2: Try alternative back button selector
-      const altBackButtonVisible = await this.isElementExisting(this.backButtonAlternative);
-      
-      if (altBackButtonVisible) {
-        console.log("Back button found with alternative selector");
-        await this.clickElement(this.backButtonAlternative);
-        await browser.pause(2000);
-        console.log("✓ Alternative back button clicked");
-        return true;
-      }
-      
-      // Strategy 3: Try Android system back
-      console.log("No back button found, using Android system back");
-      await browser.back();
-      await browser.pause(2000);
-      console.log("✓ Android system back pressed");
-      return true;
+      // Wait for page transition
+      await browser.pause(4000);
       
     } catch (error) {
-      console.log("Failed to go back:", error);
-      
-      // Last resort: Try Android system back anyway
-      try {
-        await browser.back();
-        await browser.pause(1000);
-        return true;
-      } catch (backError) {
-        console.log("Android system back also failed:", backError);
-        return false;
-      }
+      console.error(`Failed to click "All" button:`, error);
+      throw error;
     }
   }
 
-  async clickViewAllForCategory(categoryName: string) {
-    console.log(`Looking for View All button for ${categoryName}...`);
+  async waitForProductsPage(): Promise<boolean> {
+    console.log("Waiting for products page to load...");
     
-    // Wait a bit for all View All buttons to load
-    await browser.pause(1500);
-    
-    // Find all View All buttons
-    const viewAllButtons = await browser.$$('//android.widget.Button[@content-desc="View All"]');
-    console.log(`Found ${viewAllButtons.length} View All buttons on screen`);
-    
-    // Based on category position, determine which View All to click
-    let buttonIndex = 1; // default
-    
-    // Check which categories are visible to determine the correct index
-    const skincareVisible = await this.isElementExisting(this.skincareCategory);
-    const mobilesVisible = await this.isElementExisting(this.mobilesAndElectronicsCategory);
-    const icecreamsVisible = await this.isElementExisting(this.icecreamsCategory);
-    
-    if (categoryName === 'Skincare' && skincareVisible) {
-      buttonIndex = 1; // First View All
-    } else if (categoryName === 'Mobiles and Electronics' && mobilesVisible) {
-      // If Skincare is also visible, Mobiles is second, otherwise first
-      buttonIndex = skincareVisible ? 2 : 1;
-    } else if (categoryName === 'Kitchen and Dining' && icecreamsVisible) {
-      // Count how many categories are above Kitchen and Dining
-      let indexCount = 1;
-      if (skincareVisible) indexCount++;
-      if (mobilesVisible) indexCount++;
-      buttonIndex = indexCount;
+    try {
+      // Wait for at least one Add button to appear
+      await browser.waitUntil(
+        async () => {
+          const addButtonExists = await this.isElementExisting('//android.view.View[@content-desc="Add"]');
+          return addButtonExists;
+        },
+        {
+          timeout: 10000,
+          timeoutMsg: 'Products page did not load - no Add buttons found'
+        }
+      );
+      
+      console.log("✓ Products page loaded");
+      return true;
+    } catch (error) {
+      console.error("Products page failed to load:", error);
+      return false;
     }
-    
-    console.log(`Clicking View All button at index ${buttonIndex} for ${categoryName}`);
-    const viewAllSelector = this.getViewAllButtonByIndex(buttonIndex);
-    
-    await this.clickElement(viewAllSelector);
-    await browser.pause(3000);
-    console.log(`✓ View All clicked for ${categoryName} - products page opened`);
   }
 
   async addProductFromCategory(productIndex: number = 1): Promise<boolean> {
@@ -204,48 +143,244 @@ export class CategoriesPage extends BasePage {
     }
   }
 
-  async switchToSunscreenSubcategory() {
-    console.log("Switching to Sunscreen subcategory...");
-    await this.clickElement(this.sunscreenSubcategory);
-    await browser.pause(3000);
-    console.log("✓ Sunscreen subcategory selected");
-  }
-
-  async addProductWithSwipeUp(): Promise<boolean> {
-    console.log("Adding product after swipe up...");
+  async switchToSubcategory(subcategoryName: string) {
+    console.log(`Switching to ${subcategoryName} subcategory...`);
     
-    // First swipe up to see more products
-    await SwipeUtils.swipeUp(0.5);
-    await browser.pause(2000);
-    
-    // Try to add the first visible product
-    const added = await this.addProductFromCategory(1);
-    if (!added) {
-      // Try second product if first fails
-      return await this.addProductFromCategory(2);
+    let selector = '';
+    switch(subcategoryName) {
+      case 'Masks and cleansers':
+        selector = this.masksAndCleansersSubcategory;
+        break;
+      case 'Sunscreen':
+        selector = this.sunscreenSubcategory;
+        break;
+      default:
+        selector = `//android.widget.ImageView[@content-desc="${subcategoryName}"]`;
     }
-    return added;
+    
+    await this.clickElement(selector);
+    await browser.pause(3000);
+    console.log(`✓ ${subcategoryName} subcategory selected`);
   }
 
+  // FIX FOR LINE 179 - Fixed scrollToFindAllButton method
+  async scrollToFindAllButton(targetPosition: number): Promise<boolean> {
+    console.log(`Scrolling to find "All" button at position ${targetPosition}...`);
+    
+    const maxScrolls = 5;
+    let scrollCount = 0;
+    
+    while (scrollCount < maxScrolls) {
+      // Check how many "All" buttons are visible
+      const allButtonsElements = await browser.$$('//android.widget.ImageView[@content-desc="All"]');
+      // Get the actual count by evaluating the length
+      const visibleCount: number = await (async () => {
+        return allButtonsElements.length;
+      })();
+      
+      console.log(`Found ${visibleCount} "All" buttons on screen`);
+      
+      if (visibleCount >= targetPosition) {
+        console.log(`✓ Target "All" button is visible`);
+        return true;
+      }
+      
+      await SwipeUtils.swipeUp(0.4);
+      await browser.pause(1000);
+      scrollCount++;
+    }
+    
+    console.log(`❌ Could not find "All" button at position ${targetPosition}`);
+    return false;
+  }
+
+  // Main test flow with fixes
+  async testCategoriesFlow(): Promise<number> {
+    console.log("\n=== Testing Categories Section ===");
+    
+    let totalProductsAdded = 0;
+    
+    try {
+      // Navigate to Categories
+      await this.navigateToCategories();
+      await this.takeScreenshot('categories-01-main-page');
+      
+      // Test 1: First category (Skincare)
+      console.log("\n📦 Testing Skincare Category");
+      
+      // Click the first "All" button (Skincare)
+      await this.clickAllButtonForCategory(1);
+      
+      // Wait for products page
+      const skincareLoaded = await this.waitForProductsPage();
+      if (skincareLoaded) {
+        await this.takeScreenshot('categories-02-skincare-products');
+        
+        // Add 1 product
+        if (await this.addProductFromCategory(1)) {
+          totalProductsAdded++;
+          console.log(`Total products added: ${totalProductsAdded}`);
+        }
+        
+        // Scroll and add 2 more products
+        await SwipeUtils.swipeUp(0.5);
+        await browser.pause(2000);
+        
+        for (let i = 1; i <= 2; i++) {
+          if (await this.addProductFromCategory(i)) {
+            totalProductsAdded++;
+            console.log(`Total products added: ${totalProductsAdded}`);
+            await browser.pause(1500);
+          }
+        }
+        
+        // Switch to Masks and cleansers subcategory
+        await this.switchToSubcategory('Masks and cleansers');
+        await this.takeScreenshot('categories-03-masks-subcategory');
+        
+        // Add 2 products from subcategory
+        for (let i = 1; i <= 2; i++) {
+          if (await this.addProductFromCategory(i)) {
+            totalProductsAdded++;
+            console.log(`Total products added: ${totalProductsAdded}`);
+            await browser.pause(1500);
+          }
+        }
+        
+        // Go back to categories main
+        await this.goBack();
+        await browser.pause(2000);
+      }
+      
+      // Test 2: Scroll and find Icecreams category
+      console.log("\n📦 Testing Icecreams and Frozen desserts");
+      
+      // Scroll to find more categories
+      await SwipeUtils.swipeUp(0.5);
+      await browser.pause(2000);
+      
+      // FIX FOR LINE 264 - Look for "All" buttons again
+      const allButtonsAfterScrollElements = await browser.$$('//android.widget.ImageView[@content-desc="All"]');
+      const buttonsCountAfterScroll: number = await (async () => {
+        return allButtonsAfterScrollElements.length;
+      })();
+      console.log(`Found ${buttonsCountAfterScroll} "All" buttons after scroll`);
+      
+      // Click an "All" button (adjust index based on what's visible)
+      if (buttonsCountAfterScroll >= 1) {
+        await this.clickAllButtonForCategory(1); // Click first visible "All"
+        
+        const categoryLoaded = await this.waitForProductsPage();
+        if (categoryLoaded) {
+          await this.takeScreenshot('categories-04-category-products');
+          
+          // Add products
+          if (await this.addProductFromCategory(1)) {
+            totalProductsAdded++;
+          }
+          
+          await SwipeUtils.swipeUp(0.5);
+          await browser.pause(2000);
+          
+          for (let i = 1; i <= 2; i++) {
+            if (await this.addProductFromCategory(i)) {
+              totalProductsAdded++;
+              await browser.pause(1500);
+            }
+          }
+          
+          await this.goBack();
+          await browser.pause(2000);
+        }
+      }
+      
+      // Test 3: One more category
+      console.log("\n📦 Testing another category");
+      
+      // Scroll again if needed
+      await SwipeUtils.swipeUp(0.4);
+      await browser.pause(2000);
+      
+      // FIX FOR LINE 302 - Click another "All" button
+      const finalAllButtonsElements = await browser.$$('//android.widget.ImageView[@content-desc="All"]');
+      const finalButtonsCount: number = await (async () => {
+        return finalAllButtonsElements.length;
+      })();
+      
+      if (finalButtonsCount >= 1) {
+        await this.clickAllButtonForCategory(1);
+        
+        const finalCategoryLoaded = await this.waitForProductsPage();
+        if (finalCategoryLoaded) {
+          await this.takeScreenshot('categories-05-final-products');
+          
+          // Add products
+          if (await this.addProductFromCategory(1)) {
+            totalProductsAdded++;
+          }
+          
+          await SwipeUtils.swipeUp(0.5);
+          await browser.pause(2000);
+          
+          for (let i = 1; i <= 2; i++) {
+            if (await this.addProductFromCategory(i)) {
+              totalProductsAdded++;
+              await browser.pause(1500);
+            }
+          }
+          
+          await this.goBack();
+          await browser.pause(2000);
+        }
+      }
+      
+      // Return to home
+      console.log("\n📱 Returning to Home page");
+      await this.navigateToHome();
+      await this.takeScreenshot('categories-06-back-to-home');
+      
+      console.log(`\n✅ Categories test completed. Total products added: ${totalProductsAdded}`);
+      return totalProductsAdded;
+      
+    } catch (error) {
+      console.error("Error in categories flow:", error);
+      await this.takeScreenshot('categories-error');
+      
+      // Try to recover and go back to home
+      try {
+        await this.navigateToHome();
+      } catch (recoveryError) {
+        console.log("Failed to navigate home during recovery");
+      }
+      
+      throw error;
+    }
+  }
+
+  // Keep existing compatibility method
+  async addProductsFromMultipleCategories(): Promise<number> {
+    return await this.testCategoriesFlow();
+  }
+
+  // Helper method to go back from product page
   async goBackFromProductPage() {
     console.log("Going back from product page...");
     
-    // Use the more robust goBack method
     const wentBack = await this.goBack();
     
     if (wentBack) {
-      console.log("✓ Successfully went back from product page");
+            console.log("✓ Successfully went back from product page");
     } else {
       console.log("❌ Failed to go back from product page");
     }
   }
 
+  // Helper method to go back to main categories
   async goBackToMainCategories() {
     console.log("Ensuring we're back at main categories page...");
     
-    // Check if we're already on categories page
-    const categoriesVisible = await this.isElementExisting(this.skincareCategory) || 
-                            await this.isElementExisting(this.mobilesAndElectronicsCategory);
+    // Check if we're already on categories page by looking for All buttons
+    const categoriesVisible = await this.isElementExisting(this.allButton);
     
     if (!categoriesVisible) {
       // We might be in a product page, go back
@@ -256,175 +391,29 @@ export class CategoriesPage extends BasePage {
     console.log("✓ At main categories page");
   }
 
-  async scrollToFindCategory(categoryName: string): Promise<string | null> {
-    console.log(`Scrolling to find ${categoryName} category...`);
-    
-    const maxScrolls = 5;
-    let scrollCount = 0;
-    
-    while (scrollCount < maxScrolls) {
-      // Check if the category is visible
-      let selector = '';
-      if (categoryName === 'Mobiles and Electronics') {
-        selector = this.mobilesAndElectronicsCategory;
-      } else if (categoryName === 'Kitchen and Dining') {
-        selector = this.icecreamsCategory;
-      } else if (categoryName === 'Skincare') {
-        selector = this.skincareCategory;
-      } else {
-        selector = `//android.view.View[@content-desc="${categoryName}"]`;
-      }
-      
-      const isVisible = await this.isElementExisting(selector);
-      if (isVisible) {
-        console.log(`✓ ${categoryName} category found`);
-        return selector;
-      }
-      
-      await SwipeUtils.swipeUp(0.4);
-      await browser.pause(1000);
-      scrollCount++;
-    }
-    
-    console.log(`❌ ${categoryName} category not found after scrolling`);
-    return null;
-  }
-
-  async selectCategory(categoryName: string): Promise<boolean> {
-    // First check if category is already visible
-    let selector = '';
-    if (categoryName === 'Skincare') {
-      selector = this.skincareCategory;
-    } else if (categoryName === 'Mobiles and Electronics') {
-      selector = this.mobilesAndElectronicsCategory;
-    } else if (categoryName === 'Kitchen and Dining') {
-      selector = this.icecreamsCategory;
-    }
-
-    let isVisible = await this.isElementExisting(selector);
-    
-    if (!isVisible) {
-      // If not visible, scroll to find it
-      const foundSelector = await this.scrollToFindCategory(categoryName);
-      if (!foundSelector) {
-        return false;
-      }
-      selector = foundSelector;
-    }
-
-    await this.clickElement(selector);
-    await browser.pause(2000);
-    console.log(`✓ ${categoryName} category selected`);
-    return true;
-  }
-
-  // Main flow for adding products from categories
-  async addProductsFromMultipleCategories(): Promise<number> {
-    console.log("\n=== Adding Products from Multiple Categories ===");
-    
-    let totalProductsAdded = 0;
-    
+  // Alternative helper method to count All buttons safely
+  private async countAllButtons(): Promise<number> {
     try {
-      // Navigate to Categories
-      await this.navigateToCategories();
-      await browser.saveScreenshot('./screenshots/categories-01-main-page.png');
-      
-      // Category 1: Skincare
-      console.log("\n📦 Category 1: Skincare");
-      const foundSkincare = await this.selectCategory('Skincare');
-      
-      if (foundSkincare) {
-        await this.clickViewAllForCategory('Skincare');
-        await browser.saveScreenshot('./screenshots/categories-02-skincare-products.png');
-        
-        // Add first product from default subcategory
-        if (await this.addProductFromCategory(1)) {
-          totalProductsAdded++;
-          console.log(`Total products added: ${totalProductsAdded}`);
-        }
-        
-        // Switch to Sunscreen subcategory
-        await this.switchToSunscreenSubcategory();
-        await browser.saveScreenshot('./screenshots/categories-03-sunscreen-subcategory.png');
-        
-        // Add one product normally
-        if (await this.addProductFromCategory(1)) {
-          totalProductsAdded++;
-          console.log(`Total products added: ${totalProductsAdded}`);
-        }
-        
-        // Add another product after swiping
-        if (await this.addProductWithSwipeUp()) {
-          totalProductsAdded++;
-          console.log(`Total products added: ${totalProductsAdded}`);
-        }
-        
-        // Go back to categories main page
-        await this.goBackFromProductPage();
-        await this.goBackToMainCategories();
+      const elements = await browser.$$('//android.widget.ImageView[@content-desc="All"]');
+      // Explicitly handle the length
+      if (Array.isArray(elements)) {
+        return elements.length;
       }
-      
-      // Category 2: Mobiles and Electronics
-      console.log("\n📦 Category 2: Mobiles and Electronics");
-      await browser.pause(2000);
-      const foundMobiles = await this.selectCategory('Mobiles and Electronics');
-      
-      if (foundMobiles) {
-        await browser.pause(2000);
-        await this.clickViewAllForCategory('Mobiles and Electronics');
-        await browser.saveScreenshot('./screenshots/categories-04-mobiles-products.png');
-        
-        // Add 2 products
-        for (let i = 1; i <= 2; i++) {
-          if (await this.addProductFromCategory(i)) {
-            totalProductsAdded++;
-            console.log(`Total products added: ${totalProductsAdded}`);
-            await browser.pause(1500);
-          }
-        }
-        
-        // Go back to categories main page
-        await this.goBackFromProductPage();
-        await this.goBackToMainCategories();
-      }
-      
-      // Category 3: Kitchen and Dining
-      console.log("\n📦 Category 3: Kitchen and Dining");
-      await browser.pause(2000);
-      const foundIcecreams = await this.selectCategory('Kitchen and Dining');
-      
-      if (foundIcecreams) {
-        await browser.pause(2000);
-        await this.clickViewAllForCategory('Kitchen and Dining');
-        await browser.saveScreenshot('./screenshots/categories-05-icecreams-products.png');
-        
-        // Add 2 products
-        for (let i = 1; i <= 2; i++) {
-          if (await this.addProductFromCategory(i)) {
-            totalProductsAdded++;
-            console.log(`Total products added: ${totalProductsAdded}`);
-            await browser.pause(1500);
-          }
-        }
-        
-        // Try one more with swipe if needed
-        if (totalProductsAdded < 8 && await this.addProductWithSwipeUp()) {
-          totalProductsAdded++;
-          console.log(`Total products added: ${totalProductsAdded}`);
-        }
-        
-        // Go back for final navigation
-        await this.goBackFromProductPage();
-      }
-      
-      console.log(`\n✅ Added ${totalProductsAdded} products from categories`);
-      await browser.saveScreenshot('./screenshots/categories-06-final.png');
-      return totalProductsAdded;
-      
+      // If it's not an array, try to get length property
+      return (elements as any).length || 0;
     } catch (error) {
-      console.error("Error in categories flow:", error);
-      await browser.saveScreenshot('./screenshots/categories-error.png');
-      throw error;
+      console.log("Error counting All buttons:", error);
+      return 0;
+    }
+  }
+
+  // Additional helper method for better type safety
+  private async getElementsCount(selector: string): Promise<number> {
+    try {
+      const elements = await browser.$$(selector);
+      return elements.length;
+    } catch (error) {
+      return 0;
     }
   }
 }

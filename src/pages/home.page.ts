@@ -1,24 +1,26 @@
+// src/pages/home.page.ts
 import { BasePage } from './base.page';
 import { browser } from '@wdio/globals';
 
 export class HomePage extends BasePage {
-  // Selectors for home page elements - UPDATED FOR VERSION 0.5
+  // Updated selectors for new UI (Tab 1 of 4 instead of Tab 1 of 5)
   private get searchBar() { 
-    // Changed from generic EditText to specific content-desc
     return '//android.view.View[@content-desc="Search for Store / Groceries & Essentials....."]'; 
   }
   
   private get homeTab() { 
-    // Changed from Button to ImageView and Tab 1 of 5 to Tab 1 of 4
     return '//android.widget.ImageView[@content-desc="Home Tab 1 of 4"]'; 
   }
   
+  private get categoriesTab() {
+    return '//android.widget.ImageView[@content-desc="Categories Tab 2 of 4"]';
+  }
+  
   private get profileTab() {
-    // Changed from Button to ImageView and Tab 5 of 5 to Tab 4 of 4
     return '//android.widget.ImageView[@content-desc="Profile Tab 4 of 4"]';
   }
   
-  // Rest of your methods remain the same
+  // Keep existing methods unchanged
   async isHomePageDisplayed(): Promise<boolean> {
     try {
       console.log("Checking if home page is displayed...");
