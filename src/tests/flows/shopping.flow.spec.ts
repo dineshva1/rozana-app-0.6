@@ -1,4 +1,4 @@
-// src/tests/flows/shopping-complete.flow.spec.ts - Complete corrected version
+// src/tests/flows/shopping-complete.flow.spec.ts - With minor improvements
 
 import { expect, browser } from "@wdio/globals";
 import { HomePage } from "../../pages/home.page";
@@ -39,7 +39,8 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       
       // Step 3: Add products
       console.log("\nStep 3: Adding products...");
-      const addedCount = await productsPage.addProducts(3); // Adding 3 products as shown in screenshots
+      const addedCount = await productsPage.addProducts(3);
+      expect(addedCount).toBeGreaterThan(0); // Ensure at least one product was added
       console.log(`✓ Successfully added ${addedCount} products`);
       await TestHelpers.takeScreenshot('phase1-03-products-added');
       await browser.pause(2000);
@@ -92,6 +93,11 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       console.log("✓ All cart operations completed successfully");
       await TestHelpers.takeScreenshot('phase2-complete');
       
+      // Verify cart is empty after operations
+      const emptyCartCheck = await cartPage.getItemCount();
+      console.log(`\nCart items after operations: ${emptyCartCheck}`);
+      expect(emptyCartCheck).toBe(0); // Cart should be empty
+      
       // Step 5: Go back to home
       console.log("\nStep 5: Going back to home page...");
       await cartPage.goBackFromCart();
@@ -102,18 +108,30 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       console.log("\n========== PHASE 3: Order Placement with Address Selection ==========");
       
       // Verify we're back on home page
-      const isHomeAgain = await homePage.isHomePageDisplayed();
-      if (!isHomeAgain) {
-        console.log("Not on home page, navigating back...");
+      let isHomeAgain = await homePage.isHomePageDisplayed();
+      let backAttempts = 0;
+      while (!isHomeAgain && backAttempts < 3) {
+        console.log(`Not on home page, navigating back... (attempt ${backAttempts + 1})`);
         await browser.back();
         await TestHelpers.waitForApp(2000);
+        isHomeAgain = await homePage.isHomePageDisplayed();
+        backAttempts++;
       }
+      expect(isHomeAgain).toBe(true);
       
       // Step 6: Add products again (no swipe needed)
       console.log("\nStep 6: Adding products again...");
       console.log("✓ Products already visible (app maintains scroll position)");
       
-      const secondAddCount = await productsPage.addProducts(6); // Adding 6 products for final order
+      // Verify products are visible before adding
+      const productsVisible = await productsPage.isElementExisting('//android.view.View[@content-desc="Add"]');
+      if (!productsVisible) {
+        console.log("Products not visible, swiping up again...");
+        await productsPage.swipeUpToSeeProducts();
+      }
+      
+      const secondAddCount = await productsPage.addProducts(6);
+      expect(secondAddCount).toBeGreaterThan(0); // Ensure products were added
       console.log(`✓ Added ${secondAddCount} product(s)`);
       await TestHelpers.takeScreenshot('phase3-01-products-added');
       await browser.pause(2000);
@@ -126,6 +144,11 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       await TestHelpers.takeScreenshot('phase3-02-cart-opened');
       await TestHelpers.waitForApp(3000);
       
+      // Verify items in cart before placing order
+      const cartBeforeOrder = await cartPage.getItemCount();
+      console.log(`\nItems in cart before order: ${cartBeforeOrder}`);
+      expect(cartBeforeOrder).toBeGreaterThan(0);
+      
       // Step 8: Complete order with address and COD
       console.log("\nStep 8: Placing order with address selection...");
       console.log("\nExpected flow:");
@@ -133,13 +156,14 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       console.log("2. Verify COD is enabled (purple selection)");
       console.log("3. Click Select Address button");
       console.log("4. Wait for address page to load");
-      console.log("5. Click Use Current Location");
-      console.log("6. Swipe up to find Save Address");
-      console.log("7. Click Save Address");
-      console.log("8. Return to cart with address selected");
-      console.log("9. Click Place Order");
-      console.log("10. See order success page");
-      console.log("11. Click Continue Shopping\n");
+      console.log("5. Dismiss keyboard if visible");
+      console.log("6. Click Use Current Location");
+      console.log("7. Swipe up to find Save Address");
+      console.log("8. Click Save Address");
+      console.log("9. Return to cart with address selected");
+      console.log("10. Click Place Order");
+      console.log("11. See order success page");
+      console.log("12. Click Continue Shopping\n");
       
       const orderPlaced = await cartPage.placeOrderWithAddressAndCOD();
       
@@ -155,6 +179,7 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       } else {
         console.log("\n❌ Order placement failed");
         await TestHelpers.takeScreenshot('phase3-order-failed');
+        expect(orderPlaced).toBe(true); // Fail the test if order wasn't placed
       }
       
       // Final verification
@@ -185,6 +210,7 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       console.log("     - Decremented quantity from 2 to 1");
       console.log("     - Deleted the product completely");
       console.log("   • Cleared remaining cart items");
+      console.log("   • Verified cart is empty");
       console.log("   • Returned to home page");
       
       console.log("\n✅ Phase 3 - Order Placement:");
@@ -192,6 +218,7 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       console.log("   • Verified Cash on Delivery enabled");
       console.log("   • Completed address selection flow:");
       console.log("     - Selected address");
+      console.log("     - Handled keyboard dismissal");
       console.log("     - Used current location");
       console.log("     - Saved address");
       console.log("   • Successfully placed order");
@@ -203,19 +230,53 @@ describe("Complete Shopping Flow with Cart Operations", () => {
       console.error(TestHelpers.formatErrorLog(`Shopping flow failed: ${error}`));
       await TestHelpers.takeScreenshot('test-error-final');
       
-      // Recovery attempt
+      // Enhanced recovery attempt
       try {
         console.log("\nAttempting to recover and return to home...");
-        await browser.back();
-        await TestHelpers.waitForApp(1000);
-        await browser.back();
-        await TestHelpers.waitForApp(1000);
         
-        // Final attempt to get to home
-        const recoveryHome = await homePage.isHomePageDisplayed();
-        if (!recoveryHome) {
-          await browser.back();
+        // Try multiple recovery methods
+        const recoveryMethods = [
+          async () => await browser.back(),
+          async () => await cartPage.goBackFromCart(),
+          async () => {
+            // Try clicking any visible back button
+            const backButtons = [
+              '//android.widget.Button[1]',
+              '//android.widget.ImageButton[@content-desc="Navigate up"]',
+              '//android.widget.ImageButton[@content-desc="Back"]'
+            ];
+            for (const selector of backButtons) {
+              try {
+                const backBtn = await browser.$(selector);
+                if (await backBtn.isExisting()) {
+                  await backBtn.click();
+                  return true;
+                }
+              } catch (e) {
+                // Continue trying
+              }
+            }
+            return false;
+          }
+        ];
+        
+        // Try each recovery method
+        for (const method of recoveryMethods) {
+          try {
+            await method();
+            await TestHelpers.waitForApp(1000);
+            
+            // Check if we're back on home page
+            const isHome = await homePage.isHomePageDisplayed();
+            if (isHome) {
+              console.log("✓ Successfully recovered to home page");
+              break;
+            }
+          } catch (e) {
+            console.log("Recovery method failed, trying next...");
+          }
         }
+        
       } catch (recoveryError) {
         console.log("Recovery failed:", recoveryError);
       }

@@ -142,6 +142,61 @@ export class CartPage extends BasePage {
 
   // Handle address selection flow with proper waiting
 // Updated handleAddressSelection method in cart.page.ts
+// Add these methods to handle keyboard
+
+// Method to hide keyboard
+async hideKeyboard(): Promise<boolean> {
+  console.log("Attempting to hide keyboard...");
+  
+  try {
+    // Method 1: Try driver hideKeyboard command
+    if (browser.isAndroid) {
+      try {
+        await browser.hideKeyboard();
+        console.log("✓ Keyboard hidden using hideKeyboard()");
+        await browser.pause(1000);
+        return true;
+      } catch (e) {
+        console.log("hideKeyboard() method not available, trying alternatives...");
+      }
+    }
+    
+    // Method 2: Press device back button
+    try {
+      await browser.back();
+      console.log("✓ Pressed back button to hide keyboard");
+      await browser.pause(1000);
+      return true;
+    } catch (e) {
+      console.log("Back button method failed");
+    }
+    
+    // Method 3: Click outside the input field
+    try {
+      // Click on a neutral area (header or title)
+      const headerElement = await browser.$('//android.widget.TextView[@text="Add New Address"]');
+      if (await headerElement.isExisting()) {
+        await headerElement.click();
+        console.log("✓ Clicked on header to dismiss keyboard");
+        await browser.pause(1000);
+        return true;
+      }
+    } catch (e) {
+      console.log("Click outside method failed");
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Failed to hide keyboard:", error);
+    return false;
+  }
+}
+
+// Updated handleAddressSelection with keyboard handling
+// Updated handleAddressSelection method in cart.page.ts
+
+// Make sure this method is in your cart.page.ts
+
 async handleAddressSelection(): Promise<boolean> {
   console.log("\n=== Handling Address Selection ===");
   
@@ -156,89 +211,137 @@ async handleAddressSelection(): Promise<boolean> {
     }
 
     await selectAddressBtn.click();
-    console.log("✓ Select Address clicked, waiting for page to load...");
-    
-    // Enhanced wait for address page
-    const pageLoaded = await this.waitForAddressPageToLoad();
-    if (!pageLoaded) {
-      console.log("Address page failed to load properly");
-      return false;
-    }
-    
-    await this.takeScreenshot('address-page-loaded');
+    console.log("✓ Select Address clicked, waiting for Add New Address page to load...");
+    await browser.pause(3000);
+    await this.takeScreenshot('add-new-address-page');
 
-    // Step 2: Click Use Current Location with retry
+    // Step 2: Click Use Current Location
     console.log("\nStep 2: Clicking Use Current Location...");
-    let locationClicked = false;
-    let retries = 3;
+    const useLocationBtn = await browser.$(this.useCurrentLocationButton);
     
-    while (!locationClicked && retries > 0) {
-      const useLocationBtn = await browser.$(this.useCurrentLocationButton);
-      
-      if (await useLocationBtn.isExisting() && await useLocationBtn.isDisplayed()) {
-        await useLocationBtn.click();
-        console.log("✓ Use Current Location clicked");
-        locationClicked = true;
-        await browser.pause(3000); // Wait for location to be fetched
-      } else {
-        console.log(`Use Current Location not found, retrying... (${retries} left)`);
-        await browser.pause(1000);
-        retries--;
-      }
-    }
-    
-    if (!locationClicked) {
-      console.log("Failed to click Use Current Location after retries");
+    if (await useLocationBtn.isExisting() && await useLocationBtn.isDisplayed()) {
+      await useLocationBtn.click();
+      console.log("✓ Use Current Location clicked");
+      await browser.pause(3000); // Wait for location to be fetched
+    } else {
+      console.log("Use Current Location button not found");
       return false;
     }
 
-    // Step 3: Check Set as Default Address
-    console.log("\nStep 3: Setting as default address...");
-    await browser.pause(1000);
-    const defaultCheckbox = await browser.$(this.setAsDefaultAddressCheckbox);
+    // Step 3: CRITICAL - Click Home button to dismiss keyboard
+    console.log("\nStep 3: Clicking Home button to dismiss keyboard...");
+    const homeButtonSelectors = [
+      '//android.view.View[@content-desc="Home"]',
+      '//android.widget.Button[@content-desc="Home"]',
+      '//android.widget.TextView[@content-desc="Home"]',
+      'android=new UiSelector().description("Home")'
+    ];
     
-    if (await defaultCheckbox.isExisting()) {
-      const isChecked = await defaultCheckbox.getAttribute('checked');
-      if (isChecked !== 'true') {
-        await defaultCheckbox.click();
-        console.log("✓ Set as default address checked");
-      } else {
-        console.log("✓ Default address already checked");
+    let homeClicked = false;
+    for (const selector of homeButtonSelectors) {
+      try {
+        const homeBtn = await browser.$(selector);
+        if (await homeBtn.isExisting()) {
+          await homeBtn.click();
+          console.log("✓ Home button clicked - keyboard dismissed");
+          homeClicked = true;
+          await browser.pause(2000);
+          break;
+        }
+      } catch (e) {
+        // Try next selector
       }
+    }
+    
+    if (!homeClicked) {
+      console.log("⚠️ Home button not found - trying back button to dismiss keyboard");
+      await browser.back();
       await browser.pause(1000);
     }
 
-    // Step 4: Swipe up to find Save Address button with multiple attempts
-    console.log("\nStep 4: Looking for Save Address button...");
-    let saveButtonFound = false;
-    let swipeAttempts = 3;
+    // Step 4: Now swipe up to reveal checkbox and save button
+    console.log("\nStep 4: Swiping up to reveal Save Address section...");
+    await this.swipeUpOnCart();
+    await browser.pause(1500);
+    await this.takeScreenshot('after-first-swipe');
     
-    while (!saveButtonFound && swipeAttempts > 0) {
-      const saveBtn = await browser.$(this.saveAddressButton);
-      
-      if (await saveBtn.isExisting() && await saveBtn.isDisplayed()) {
-        saveButtonFound = true;
-        console.log("✓ Save Address button found");
-      } else {
-        console.log(`Save Address not visible, swiping up... (${swipeAttempts} attempts left)`);
-        await this.swipeUpOnCart();
-        await browser.pause(1500);
-        swipeAttempts--;
+    // Step 5: Look for checkbox (might need another swipe)
+    console.log("\nStep 5: Looking for 'Set as default address' checkbox...");
+    const checkboxSelectors = [
+      '//android.widget.CheckBox[@content-desc="Set as default address"]',
+      'android=new UiSelector().description("Set as default address")'
+    ];
+    
+    let checkboxFound = false;
+    for (const selector of checkboxSelectors) {
+      try {
+        const checkbox = await browser.$(selector);
+        if (await checkbox.isExisting() && await checkbox.isDisplayed()) {
+          const isChecked = await checkbox.getAttribute('checked');
+          if (isChecked !== 'true') {
+            await checkbox.click();
+            console.log("✓ 'Set as default address' checkbox clicked");
+          } else {
+            console.log("✓ 'Set as default address' already checked");
+          }
+          checkboxFound = true;
+          await browser.pause(1000);
+          break;
+        }
+      } catch (e) {
+        // Continue
       }
     }
     
-    if (!saveButtonFound) {
-      console.log("Save Address button not found after swipes");
-      return false;
+    if (!checkboxFound) {
+      console.log("Checkbox not visible yet, trying one more swipe...");
+      await this.swipeUpOnCart();
+      await browser.pause(1500);
     }
 
-    // Step 5: Save Address
-    console.log("\nStep 5: Saving address...");
-    const saveBtn = await browser.$(this.saveAddressButton);
-    await saveBtn.click();
-    console.log("✓ Save Address clicked, waiting for redirect to cart...");
+    // Step 6: Click Save Address button
+    console.log("\nStep 6: Looking for Save Address button...");
+    const saveButtonSelectors = [
+      '//android.widget.Button[@content-desc="Save Address"]',
+      'android=new UiSelector().description("Save Address")'
+    ];
     
-    // Wait for redirect back to cart with verification
+    let saveClicked = false;
+    let saveAttempts = 2;
+    
+    while (!saveClicked && saveAttempts > 0) {
+      for (const selector of saveButtonSelectors) {
+        try {
+          const saveBtn = await browser.$(selector);
+          if (await saveBtn.isExisting() && await saveBtn.isDisplayed()) {
+            await saveBtn.click();
+            console.log("✓ Save Address button clicked");
+            saveClicked = true;
+            await browser.pause(3000);
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+      
+      if (!saveClicked && saveAttempts > 1) {
+        console.log("Save Address not visible, trying another swipe...");
+        await this.swipeUpOnCart();
+        await browser.pause(1500);
+      }
+      
+      saveAttempts--;
+    }
+    
+    if (!saveClicked) {
+      console.log("❌ Failed to find and click Save Address button");
+      await this.takeScreenshot('save-address-not-found');
+      return false;
+    }
+    
+    // Step 7: Wait for redirect back to cart
+    console.log("\nStep 7: Waiting for redirect to cart page...");
     let cartPageLoaded = false;
     let waitAttempts = 5;
     
@@ -250,7 +353,7 @@ async handleAddressSelection(): Promise<boolean> {
       
       if (await placeOrderBtn.isExisting() || await myCartTitle.isExisting()) {
         cartPageLoaded = true;
-        console.log("✓ Successfully returned to cart page");
+        console.log("✓ Successfully returned to cart page with address selected");
       } else {
         console.log(`Waiting for cart page... (${waitAttempts} attempts left)`);
         waitAttempts--;
@@ -263,13 +366,41 @@ async handleAddressSelection(): Promise<boolean> {
     }
     
     await this.takeScreenshot('address-saved-cart-page');
-    console.log("✅ Address selection completed successfully");
+    console.log("\n✅ Address selection completed successfully!");
+    console.log("   • Used current location");
+    console.log("   • Clicked Home to dismiss keyboard");
+    console.log("   • Set as default address");
+    console.log("   • Address saved successfully");
+    
     return true;
 
   } catch (error) {
     console.error("Failed to handle address selection:", error);
     await this.takeScreenshot('address-selection-error');
     return false;
+  }
+}
+
+// Alternative swipe method that avoids keyboard area
+async swipeUpAvoidingKeyboard() {
+  console.log("Performing swipe up (avoiding keyboard area)...");
+  
+  try {
+    const { width, height } = await browser.getWindowSize();
+    
+    // Start swipe from middle of screen (avoiding bottom where keyboard might be)
+    // and swipe to top portion
+    await browser.action('pointer')
+      .move({ duration: 0, x: width * 0.5, y: height * 0.5 }) // Start from middle
+      .down({ button: 0 })
+      .move({ duration: 1000, x: width * 0.5, y: height * 0.2 }) // Swipe to top
+      .up({ button: 0 })
+      .perform();
+    
+    await browser.pause(1500);
+    
+  } catch (error) {
+    console.error("Error during swipe:", error);
   }
 }
   // Complete order placement flow (COD only)
@@ -1146,6 +1277,8 @@ async clearCart(): Promise<boolean> {
 }
 
 // Enhanced place order with proper COD verification
+// In cart.page.ts - Replace the entire placeOrderWithAddressAndCOD method
+
 async placeOrderWithAddressAndCOD(): Promise<boolean> {
   console.log("\n=== PLACING ORDER WITH ADDRESS SELECTION AND COD ===");
   
@@ -1177,63 +1310,19 @@ async placeOrderWithAddressAndCOD(): Promise<boolean> {
     if (await selectAddressBtn.isExisting()) {
       console.log("Address selection required");
       
-      // Click Select Address
-      await selectAddressBtn.click();
-      console.log("✓ Select Address clicked");
-      await browser.pause(3000);
+      // Use the updated handleAddressSelection method that includes Home button click
+      const addressHandled = await this.handleAddressSelection();
       
-      // Step 4: Click Use Current Location
-      console.log("\nStep 4: Clicking Use Current Location...");
-      const useLocationXpath = '//android.widget.Button[@content-desc="Use Current Location"]';
-      const useLocationBtn = await browser.$(useLocationXpath);
-      
-      let retries = 3;
-      while (retries > 0) {
-        if (await useLocationBtn.isExisting()) {
-          await useLocationBtn.click();
-          console.log("✓ Use Current Location clicked");
-          await browser.pause(3000);
-          break;
-        }
-        console.log("Waiting for Use Current Location button...");
-        await browser.pause(1000);
-        retries--;
-      }
-      
-      // Step 5: Swipe up to find Save Address
-      console.log("\nStep 5: Swiping up to find Save Address button...");
-      let saveAddressFound = false;
-      let swipeAttempts = 3;
-      
-      while (!saveAddressFound && swipeAttempts > 0) {
-        await this.swipeUpOnCart();
-        await browser.pause(1000);
-        
-        const saveAddressXpath = '//android.widget.Button[@content-desc="Save Address"]';
-        const saveBtn = await browser.$(saveAddressXpath);
-        
-        if (await saveBtn.isExisting()) {
-          console.log("✓ Save Address button found");
-          await saveBtn.click();
-          console.log("✓ Address saved");
-          saveAddressFound = true;
-          await browser.pause(3000);
-        } else {
-          console.log(`Save Address not found, attempting swipe ${4 - swipeAttempts}/3`);
-          swipeAttempts--;
-        }
-      }
-      
-      if (!saveAddressFound) {
-        console.log("Failed to find Save Address button");
+      if (!addressHandled) {
+        console.log("Failed to handle address selection");
         return false;
       }
     } else {
-      console.log("Address already selected (Select Address button not found)");
+      console.log("Address already selected or not required");
     }
-    
-    // Step 6: Click Place Order
-    console.log("\nStep 6: Looking for Place Order button...");
+
+    // Step 4: Click Place Order
+    console.log("\nStep 4: Looking for Place Order button...");
     const placeOrderXpath = '//android.widget.Button[@content-desc="Place Order"]';
     const placeOrderBtn = await browser.$(placeOrderXpath);
     
@@ -1249,8 +1338,8 @@ async placeOrderWithAddressAndCOD(): Promise<boolean> {
       console.log("✓ Place Order clicked");
       await browser.pause(3000);
       
-      // Step 7: Handle order success
-      console.log("\nStep 7: Checking for order success...");
+      // Step 5: Handle order success
+      console.log("\nStep 5: Checking for order success...");
       const continueShoppingXpath = '//android.widget.Button[@content-desc="Continue Shopping"]';
       const continueBtn = await browser.$(continueShoppingXpath);
       

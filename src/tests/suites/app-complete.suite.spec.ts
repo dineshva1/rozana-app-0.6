@@ -17,9 +17,9 @@ describe("App Complete Test Suite", () => {
   // Import and run all flow tests in order
   require("../flows/home.flow.spec");
   require("../flows/login.flow.spec");
-  // require("../flows/profile.flow.spec"); 
-  // require("../flows/search.flow.spec");
-  // require("../flows/categories.flow.spec");
+  require("../flows/profile.flow.spec"); 
+  require("../flows/search.flow.spec");
+  require("../flows/categories.flow.spec");
   require("../flows/shopping.flow.spec");
   // require("../flows/featured-products.flow.spec");
 
