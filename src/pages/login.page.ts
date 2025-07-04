@@ -250,21 +250,21 @@ export class LoginPage extends BasePage {
   }
 
   // Step 6 - Click Verify & Proceed if needed
-  async clickVerifyAndProceedIfVisible() {
-    console.log("Step 6: Checking if Verify & Proceed button is visible...");
-    try {
-      const verifyBtn = await $(this.verifyButton);
-      if (await verifyBtn.isDisplayed()) {
-        console.log("✓ Verify & Proceed button found, clicking it...");
-        await verifyBtn.click();
-        await browser.pause(3000);
-      } else {
-        console.log("✓ Verify & Proceed button not visible (auto-submit may have occurred)");
-      }
-    } catch (error) {
-      console.log("✓ No Verify & Proceed button needed");
-    }
-  }
+  // async clickVerifyAndProceedIfVisible() {
+  //   console.log("Step 6: Checking if Verify & Proceed button is visible...");
+  //   try {
+  //     const verifyBtn = await $(this.verifyButton);
+  //     if (await verifyBtn.isDisplayed()) {
+  //       console.log("✓ Verify & Proceed button found, clicking it...");
+  //       await verifyBtn.click();
+  //       await browser.pause(3000);
+  //     } else {
+  //       console.log("✓ Verify & Proceed button not visible (auto-submit may have occurred)");
+  //     }
+  //   } catch (error) {
+  //     console.log("✓ No Verify & Proceed button needed");
+  //   }
+  // }
 
   // Step 7 - Updated with multiple selector strategies
   async navigateToHome(): Promise<boolean> {
@@ -301,7 +301,7 @@ export class LoginPage extends BasePage {
       await this.enterMobileNumber(mobileNumber);
       await this.clickSendOTP();
       await this.enterOTP(otp);
-      await this.clickVerifyAndProceedIfVisible(); // Check if button is needed
+      // await this.clickVerifyAndProceedIfVisible(); // Check if button is needed
       
       const navigatedToHome = await this.navigateToHome();
       if (!navigatedToHome) {

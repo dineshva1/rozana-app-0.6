@@ -290,4 +290,5 @@ async navigateToHome(): Promise<boolean> {
   console.error("❌ Could not find home tab");
   return false;
 }
+
 }
