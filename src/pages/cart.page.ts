@@ -73,6 +73,11 @@ export class CartPage extends BasePage {
     return `(//android.widget.ImageView[contains(@content-desc, "item")]/android.view.View[1])[${index}]`;
   }
 
+  private get loginToProceedButton() {
+  return '//android.widget.Button[@content-desc="Login to Proceed"]';
+  }
+
+
   // Clear cart with confirmation dialog
   // async clearCart(): Promise<boolean> {
   //   console.log("\n=== Clearing cart ===");
@@ -1379,5 +1384,292 @@ async placeOrderWithAddressAndCOD(): Promise<boolean> {
   }
   
   return false;
+}
+
+// Shopping without Login Flow 
+async isLoginRequired(): Promise<boolean> {
+  try {
+    const loginButton = await browser.$(this.loginToProceedButton);
+    return await loginButton.isExisting();
+  } catch (error) {
+    console.error("Error checking login requirement:", error);
+    return false;
+  }
+}
+
+// Click Login to Proceed
+async clickLoginToProceed(): Promise<boolean> {
+  console.log("\n=== Clicking Login to Proceed ===");
+  
+  try {
+    const loginButton = await browser.$(this.loginToProceedButton);
+    
+    if (await loginButton.isExisting()) {
+      await loginButton.click();
+      console.log("✓ Login to Proceed clicked");
+      await browser.pause(2000);
+      return true;
+    }
+    
+    console.log("Login to Proceed button not found");
+    return false;
+    
+  } catch (error) {
+    console.error("Failed to click Login to Proceed:", error);
+    return false;
+  }
+}
+// Shopping without Login Flow
+// Add this method to cart.page.ts
+
+async completeCheckoutWithLogin(mobileNumber: string, otp: string): Promise<boolean> {
+  console.log("\n=== COMPLETE CHECKOUT WITH LOGIN ===");
+  
+  try {
+    // Step 1: Check if login is required
+    if (await this.isLoginRequired()) {
+      console.log("Login required, initiating login flow...");
+      
+      // Click Login to Proceed
+      const loginClicked = await this.clickLoginToProceed();
+      if (!loginClicked) {
+        console.log("Failed to click Login to Proceed");
+        return false;
+      }
+      
+      // Wait for login page
+      await browser.pause(2000);
+      
+      // Perform login (assuming loginPage is accessible)
+      const loginPage = new (require('../login.page').LoginPage)();
+      const loginSuccess = await loginPage.performCartLogin(mobileNumber, otp);
+      
+      if (!loginSuccess) {
+        console.log("Login failed");
+        return false;
+      }
+      
+      // Wait to return to cart
+      await browser.pause(3000);
+      
+      // Verify we're back on cart
+      const isCart = await this.isCartPageDisplayed();
+      if (!isCart) {
+        console.log("Not returned to cart after login");
+        return false;
+      }
+      
+      console.log("✓ Login completed, back on cart page");
+    }
+    
+    // Step 2: Check if address selection is needed
+    const selectAddressBtn = await browser.$(this.selectAddressButton);
+    if (await selectAddressBtn.isExisting()) {
+      console.log("Address selection required...");
+      const addressHandled = await this.handleAddressSelection();
+      
+      if (!addressHandled) {
+        console.log("Failed to handle address selection");
+        return false;
+      }
+    }
+    
+    // Step 3: Place order
+    console.log("Placing order...");
+    const orderSuccess = await this.placeOrder();
+    
+    if (orderSuccess) {
+      console.log("✅ Checkout completed successfully with login!");
+    } else {
+      console.log("❌ Checkout failed");
+    }
+    
+    return orderSuccess;
+    
+  } catch (error) {
+    console.error("Checkout with login failed:", error);
+    return false;
+  }
+}
+
+//Address Flow 
+async hasSelectAddressButton(): Promise<boolean> {
+  try {
+    const selectBtn = await browser.$(this.selectAddressButton);
+    return await selectBtn.isExisting();
+  } catch (error) {
+    return false;
+  }
+}
+
+// Method to click Select Address
+async clickSelectAddress(): Promise<boolean> {
+  console.log("\n=== Clicking Select Address ===");
+  
+  try {
+    const selectBtn = await browser.$(this.selectAddressButton);
+    
+    if (await selectBtn.isExisting()) {
+      await selectBtn.click();
+      console.log("✓ Select Address clicked");
+      await browser.pause(2000);
+      return true;
+    }
+    
+    console.log("Select Address button not found");
+    return false;
+    
+  } catch (error) {
+    console.error("Failed to click Select Address:", error);
+    return false;
+  }
+}
+
+// Method to select a specific address from the list
+async selectAddressFromList(addressType: 'HOME' | 'WORK' | 'OTHER' = 'HOME'): Promise<boolean> {
+  console.log(`\n=== Selecting ${addressType} address ===`);
+  
+  try {
+    // Wait for address list to load
+    await browser.pause(2000);
+    
+    // Try different selectors for the address
+    const addressSelectors = [
+      `//android.view.View[contains(@content-desc, "${addressType}")]`,
+      `//android.widget.Button[contains(@content-desc, "${addressType}")]`,
+      `//android.view.View[contains(@content-desc, "${addressType}") and contains(@content-desc, "Bengaluru")]`,
+      `android=new UiSelector().descriptionContains("${addressType}")`
+    ];
+    
+    let addressSelected = false;
+    
+    for (const selector of addressSelectors) {
+      try {
+        const addressElement = await browser.$(selector);
+        if (await addressElement.isExisting()) {
+          await addressElement.click();
+          console.log(`✓ ${addressType} address selected`);
+          addressSelected = true;
+          await browser.pause(2000);
+          break;
+        }
+      } catch (e) {
+        // Continue with next selector
+      }
+    }
+    
+    if (!addressSelected) {
+      console.log(`${addressType} address not found in list`);
+      return false;
+    }
+    
+    // Wait for redirect back to cart
+    console.log("Waiting for redirect back to cart...");
+    await browser.pause(2000);
+    
+    return true;
+    
+  } catch (error) {
+    console.error(`Failed to select ${addressType} address:`, error);
+    return false;
+  }
+}
+
+// Complete address selection flow
+async handleAddressSelectionFromList(): Promise<boolean> {
+  console.log("\n=== Handling Address Selection from List ===");
+  
+  try {
+    // Check if Select Address button exists
+    if (await this.hasSelectAddressButton()) {
+      // Click Select Address
+      if (!await this.clickSelectAddress()) {
+        return false;
+      }
+      
+      // Select HOME address by default
+      if (!await this.selectAddressFromList('HOME')) {
+        return false;
+      }
+      
+      console.log("✓ Address selected successfully");
+      return true;
+    } else {
+      console.log("Select Address button not found - address might already be selected");
+      return true;
+    }
+    
+  } catch (error) {
+    console.error("Failed to handle address selection:", error);
+    return false;
+  }
+}
+// Add this to cart.page.ts for a complete checkout flow with address selection
+
+async completeCheckoutWithAddressSelection(): Promise<boolean> {
+  console.log("\n=== Complete Checkout with Address Selection ===");
+  
+  try {
+    // Step 1: Handle address selection if needed
+    const hasSelectAddress = await this.hasSelectAddressButton();
+    
+    if (hasSelectAddress) {
+      console.log("Address selection required");
+      
+      if (!await this.handleAddressSelectionFromList()) {
+        console.log("Failed to select address");
+        return false;
+      }
+      
+      // Wait for cart to update
+      await browser.pause(2000);
+    } else {
+      console.log("Address already selected or not required");
+    }
+    
+    // Step 2: Swipe to see payment options
+    await this.swipeUpOnCart();
+    await browser.pause(1500);
+    
+    // Step 3: Place order
+    console.log("Looking for Place Order button...");
+    const placeOrderBtn = await browser.$(this.placeOrderButton);
+    
+    if (await placeOrderBtn.isExisting()) {
+      await placeOrderBtn.click();
+      console.log("✓ Place Order clicked");
+      await browser.pause(3000);
+      
+      // Step 4: Handle order success
+      const continueBtn = await browser.$(this.continueShoppingButton);
+      let orderSuccess = false;
+      let attempts = 5;
+      
+      while (!orderSuccess && attempts > 0) {
+        if (await continueBtn.isExisting()) {
+          console.log("✅ Order placed successfully!");
+          await this.takeScreenshot('order-success-with-address');
+          
+          await continueBtn.click();
+          console.log("✓ Continue Shopping clicked");
+          orderSuccess = true;
+          await browser.pause(2000);
+        } else {
+          console.log("Waiting for order confirmation...");
+          await browser.pause(1000);
+          attempts--;
+        }
+      }
+      
+      return orderSuccess;
+    } else {
+      console.log("Place Order button not found");
+      return false;
+    }
+    
+  } catch (error) {
+    console.error("Checkout failed:", error);
+    return false;
+  }
 }
 }

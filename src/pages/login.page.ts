@@ -316,4 +316,38 @@ export class LoginPage extends BasePage {
       throw error;
     }
   }
+  // Add this method to your existing LoginPage class
+
+async performCartLogin(mobileNumber: string, otp: string): Promise<boolean> {
+  console.log("\n=== Performing Login from Cart ===");
+  
+  try {
+    // Step 1: Cancel mobile number prompt (same as regular login)
+    await this.cancelMobileNumberPrompt();
+    
+    // Step 2: Enter mobile number (using existing method)
+    await this.enterMobileNumber(mobileNumber);
+    
+    // Step 3: Click Send OTP (using existing method)
+    await this.clickSendOTP();
+    
+    // Step 4: Enter OTP (using existing method)
+    await this.enterOTP(otp);
+    
+    // Step 5: Wait for redirect back to cart
+    console.log("\nStep 6: Waiting for redirect back to My Cart...");
+    await browser.pause(3000); // Wait for auto-redirect to cart
+    
+    // No need to navigate to Home - it should auto-redirect to cart
+    console.log("✓ Login from cart completed - should be redirected to My Cart");
+    await this.takeScreenshot('cart-login-completed');
+    
+    return true;
+    
+  } catch (error) {
+    console.error("Cart login failed:", error);
+    await this.takeScreenshot('cart-login-error');
+    return false;
+  }
+}
 }

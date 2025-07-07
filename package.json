@@ -2,9 +2,8 @@
   "name": "new-app-automation",
   "version": "1.0.0",
   "main": "index.js",
-   "scripts": {
+  "scripts": {
     "test": "wdio run wdio.conf.ts",
-    
     "// ===== Individual Flow Tests =====": "",
     "test:home": "wdio run wdio.conf.ts --suite home",
     "test:login": "wdio run wdio.conf.ts --suite login",
@@ -12,16 +11,13 @@
     "test:categories": "wdio run wdio.conf.ts --suite categories",
     "test:search": "wdio run wdio.conf.ts --suite search",
     "test:featured": "wdio run wdio.conf.ts --suite featured",
-    
     "// ===== Test Suites =====": "",
     "test:complete": "wdio run wdio.conf.ts --suite complete",
     "test:smoke": "wdio run wdio.conf.ts --suite smoke",
-    
     "// ===== Custom Test Combinations =====": "",
     "test:e2e": "wdio run wdio.conf.ts --suite complete",
     "test:critical": "npm run test:home && npm run test:login && npm run test:shopping",
     "test:all-shopping": "npm run test:shopping && npm run test:categories && npm run test:featured",
-    
     "// ===== Reports and Cleanup =====": "",
     "report:generate": "allure generate allure-results --clean -o allure-report",
     "report:view": "./view-report.sh",
@@ -30,17 +26,14 @@
     "clean:screenshots": "rimraf screenshots",
     "clean:logs": "rimraf logs",
     "clean:all": "npm run clean",
-    
     "// ===== Appium Management =====": "",
     "appium": "appium",
     "appium:doctor": "appium driver doctor uiautomator2",
     "appium:start": "appium --relaxed-security --session-override",
     "appium:log": "appium --log-level debug",
-    
     "// ===== Development Tools =====": "",
     "compile": "tsc --noEmit",
     "compile:watch": "tsc --noEmit --watch",
-    
     "// ===== Pre/Post Hooks =====": "",
     "pretest": "npm run clean:screenshots",
     "posttest": "npm run report:generate",
@@ -62,7 +55,7 @@
     "@wdio/spec-reporter": "^9.15.0",
     "allure-commandline": "^2.24.0",
     "appium": "^2.19.0",
-    "appium-uiautomator2-driver": "^4.2.3",
+    "appium-uiautomator2-driver": "^4.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
