@@ -18,6 +18,7 @@ export const config: Options.Testrunner = {
     search: ['./src/tests/flows/search.flow.spec.ts'],
     shoppingwithoutlogin: ['./src/tests/flows/shopping-without-login.flow.spec.ts'],
     shoppingwithaddress: ['./src/tests/flows/shopping-with-address.flow.spec.ts'],
+    addresscrud: ['./src/tests/flows/address-crud.spec.ts'],
     complete: ['./src/tests/suites/app-complete.suite.spec.ts'],
     smoke: ['./src/tests/flows/home.flow.spec.ts', './src/tests/flows/login.flow.spec.ts']
   },

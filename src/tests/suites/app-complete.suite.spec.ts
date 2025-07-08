@@ -22,7 +22,8 @@ describe("App Complete Test Suite", () => {
   // require("../flows/categories.flow.spec");
   // require("../flows/shopping.flow.spec");
   // require("../flows/shopping-without-login.flow.spec");
-  require("../flows/shopping-with-address.flow.spec");
+  // require("../flows/shopping-with-address.flow.spec");
+  require("../flows/address-crud.spec");
   after(async () => {
     // Take final screenshot
     await TestHelpers.takeScreenshot('suite-complete');

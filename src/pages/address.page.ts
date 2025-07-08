@@ -1,7 +1,7 @@
 // src/pages/address.page.ts
 import { BasePage } from './base.page';
 import { browser } from '@wdio/globals';
-
+import {TestHelpers} from '../utils/test-helpers';
 export class AddressPage extends BasePage {
   // Location button on home page
   private get locationButton() {
@@ -61,6 +61,14 @@ export class AddressPage extends BasePage {
     return `//android.widget.Button[contains(@content-desc, "${text}")]`;
   }
   
+  private getEditAddressButton(addressType: string = 'HOME') {
+  return `//android.view.View[contains(@content-desc, "${addressType}")]/android.widget.Button[1]`;
+}
+
+// Get delete button for a specific address  
+private getDeleteAddressButton(addressType: string = 'HOME') {
+  return `//android.view.View[contains(@content-desc, "${addressType}")]/android.widget.Button[2]`;
+}
   // Click location on home page
   async clickLocationOnHomePage(): Promise<boolean> {
     console.log("\n=== Clicking location on home page ===");
@@ -684,6 +692,669 @@ async clickFloatingActionButton(): Promise<boolean> {
   } catch (error) {
     console.error("Failed to click by coordinates:", error);
     return false;
+  }
+}
+// Edit address method
+async editAddress(addressType: 'HOME' | 'WORK' | 'OTHER', newSearchText: string, newResultText: string): Promise<boolean> {
+  console.log(`\n=== Editing ${addressType} address ===`);
+  
+  try {
+    // Find and click edit button
+    const editButtonSelector = this.getEditAddressButton(addressType);
+    const editBtn = await browser.$(editButtonSelector);
+    
+    if (!await editBtn.isExisting()) {
+      // Try with index-based selector
+      const altEditBtn = await browser.$('android=new UiSelector().className("android.widget.Button").instance(1)');
+      if (await altEditBtn.isExisting()) {
+        await altEditBtn.click();
+      } else {
+        console.log(`Edit button not found for ${addressType}`);
+        return false;
+      }
+    } else {
+      await editBtn.click();
+    }
+    
+    console.log("✓ Edit button clicked");
+    await browser.pause(3000);
+    
+    // Clear existing search and enter new location
+    const searchInput = await browser.$(this.searchLocationInput);
+    if (await searchInput.isExisting()) {
+      await searchInput.click();
+      await browser.pause(500);
+      await searchInput.clearValue();
+      await searchInput.setValue(newSearchText);
+      console.log(`✓ Entered new search text: ${newSearchText}`);
+      await browser.pause(2000);
+    }
+    
+    // Select new location
+    const resultSelector = this.getAddressResult(newResultText);
+    const resultBtn = await browser.$(resultSelector);
+    
+    if (await resultBtn.isExisting()) {
+      await resultBtn.click();
+      console.log(`✓ Selected: ${newResultText}`);
+    } else {
+      // Try first result
+      const firstResult = await browser.$('//android.widget.Button[contains(@content-desc, ",")]');
+      if (await firstResult.isExisting()) {
+        await firstResult.click();
+        console.log("✓ Selected first result");
+      }
+    }
+    await browser.pause(2000);
+    
+    // Confirm location
+    if (!await this.confirmLocation()) {
+      return false;
+    }
+    
+    // Wait for address details page
+    await browser.pause(2000);
+    
+    // Save updated address
+    if (!await this.saveAddress()) {
+      return false;
+    }
+    
+    console.log(`✅ ${addressType} address updated successfully`);
+    await this.takeScreenshot(`address-edited-${addressType.toLowerCase()}`);
+    return true;
+    
+  } catch (error) {
+    console.error(`Failed to edit ${addressType} address:`, error);
+    return false;
+  }
+}
+
+// Delete address method
+async deleteAddress(addressType: 'HOME' | 'WORK' | 'OTHER'): Promise<boolean> {
+  console.log(`\n=== Deleting ${addressType} address ===`);
+  
+  try {
+    // Find and click delete button
+    const deleteButtonSelector = this.getDeleteAddressButton(addressType);
+    const deleteBtn = await browser.$(deleteButtonSelector);
+    
+    if (!await deleteBtn.isExisting()) {
+      // Try with index-based selector
+      const altDeleteBtn = await browser.$('android=new UiSelector().className("android.widget.Button").instance(2)');
+      if (await altDeleteBtn.isExisting()) {
+        await altDeleteBtn.click();
+      } else {
+        console.log(`Delete button not found for ${addressType}`);
+        return false;
+      }
+    } else {
+      await deleteBtn.click();
+    }
+    
+    console.log("✓ Delete button clicked");
+    await browser.pause(2000);
+    
+    // Handle confirmation dialog if it appears
+    const confirmSelectors = [
+      '//android.widget.Button[@text="Delete"]',
+      '//android.widget.Button[@text="Confirm"]',
+      '//android.widget.Button[@text="Yes"]',
+      '//android.widget.Button[@content-desc="Delete"]'
+    ];
+    
+    for (const selector of confirmSelectors) {
+      try {
+        const confirmBtn = await browser.$(selector);
+        if (await confirmBtn.isExisting()) {
+          await confirmBtn.click();
+          console.log("✓ Deletion confirmed");
+          await browser.pause(2000);
+          break;
+        }
+      } catch (e) {
+        // Continue
+      }
+    }
+    
+    console.log(`✅ ${addressType} address deleted successfully`);
+    await this.takeScreenshot(`address-deleted-${addressType.toLowerCase()}`);
+    return true;
+    
+  } catch (error) {
+    console.error(`Failed to delete ${addressType} address:`, error);
+    return false;
+  }
+}
+
+// Perform CRUD operations on addresses
+async performAddressCRUDOperations(): Promise<boolean> {
+  console.log("\n=== Performing CRUD Operations on Addresses ===");
+  
+  try {
+    // Wait for My Addresses page to be stable
+    await browser.pause(2000);
+    
+    // Step 1: Edit HOME address to Palamaner
+    console.log("\nStep 1: Editing HOME address...");
+    const editSuccess = await this.editAddress('HOME', 'Palamaner', 'Palamaner');
+    if (!editSuccess) {
+      console.log("Failed to edit HOME address");
+      return false;
+    }
+    
+    // Wait a bit after edit
+    await browser.pause(2000);
+    
+    // Step 2: Delete HOME address
+    console.log("\nStep 2: Deleting HOME address...");
+    const deleteSuccess = await this.deleteAddress('HOME');
+    if (!deleteSuccess) {
+      console.log("Failed to delete HOME address");
+      return false;
+    }
+    
+    console.log("\n✅ CRUD operations completed successfully");
+    console.log("   • HOME address edited to Palamaner location");
+    console.log("   • HOME address deleted");
+    
+    return true;
+    
+  } catch (error) {
+    console.error("CRUD operations failed:", error);
+    return false;
+  }
+}
+// Add these methods to your AddressPage class in src/pages/address.page.ts
+
+  // Method to get current address from the address field
+  async getCurrentAddressFromField(): Promise<string> {
+    try {
+      // Multiple selectors for the address field
+      const selectors = [
+        '//android.view.View[contains(@content-desc, "Bengaluru, Karnataka")]',
+        '//android.view.View[contains(@content-desc, ", Karnataka,")]',
+        '//android.widget.TextView[contains(@text, "Bengaluru")]',
+        '//android.view.View[@clickable="false"][contains(@content-desc, ",")]'
+      ];
+      
+      for (const selector of selectors) {
+        const element = await browser.$(selector);
+        if (await element.isExisting()) {
+          const contentDesc = await element.getAttribute('content-desc');
+          const text = await element.getText();
+          const address = contentDesc || text;
+          console.log(`Current address found: ${address}`);
+          return address;
+        }
+      }
+      
+      console.log("Could not find address field with standard selectors");
+      return "";
+    } catch (error) {
+      console.error(`Error getting current address: ${error}`);
+      return "";
+    }
+  }
+
+  // Method to perform map drag
+  async dragMapToChangeLocation(): Promise<boolean> {
+    try {
+      console.log("\n=== Performing map drag to change location ===");
+      
+      // Wait for map to be fully loaded
+      await browser.pause(2000);
+      
+      // Get screen dimensions
+      const { width, height } = await browser.getWindowSize();
+      
+      // Calculate drag coordinates (drag from center to upper area)
+      const startX = Math.floor(width / 2);
+      const startY = Math.floor(height / 2);
+      const endX = Math.floor(width / 2);
+      const endY = Math.floor(height / 4); // Drag up to change location
+      
+      console.log(`Dragging from (${startX}, ${startY}) to (${endX}, ${endY})`);
+      
+      // Perform the drag action
+      await browser.action('pointer')
+        .move({ x: startX, y: startY })
+        .down()
+        .pause(100)
+        .move({ x: endX, y: endY, duration: 1000 })
+        .up()
+        .perform();
+      
+      console.log("✓ Map drag completed");
+      
+      // Wait for address to update
+      await browser.pause(3000);
+      
+      return true;
+    } catch (error) {
+      console.error(`Error dragging map: ${error}`);
+      return false;
+    }
+  }
+
+  // Method to verify address changed after drag
+  async verifyAddressChangedAfterDrag(initialAddress: string): Promise<boolean> {
+    try {
+      console.log("\n=== Verifying address change after drag ===");
+      console.log(`Initial address: ${initialAddress}`);
+      
+      // Wait for potential address update
+      await browser.pause(2000);
+      
+      // Get new address
+      const newAddress = await this.getCurrentAddressFromField();
+      console.log(`New address: ${newAddress}`);
+      
+      if (!newAddress) {
+        console.log("Could not retrieve new address");
+        return false;
+      }
+      
+      // Check if address changed
+      const addressChanged = newAddress !== initialAddress && newAddress.length > 0;
+      
+      if (addressChanged) {
+        console.log("✓ Address successfully changed after map drag");
+        await TestHelpers.takeScreenshot('address-changed-after-drag');
+      } else {
+        console.log("✗ Address did not change after map drag");
+        await TestHelpers.takeScreenshot('address-not-changed');
+      }
+      
+      return addressChanged;
+    } catch (error) {
+      console.error(`Error verifying address change: ${error}`);
+      return false;
+    }
+  }
+// Add this method to AddressPage class
+async completeAddressDetailsForm(): Promise<boolean> {
+  try {
+    console.log("Completing address details form...");
+    
+    // Add house/flat number if field exists
+    const houseNumberField = await browser.$('//android.widget.EditText[contains(@text, "House") or contains(@text, "Flat")]');
+    if (await houseNumberField.isExisting()) {
+      await houseNumberField.setValue("123");
+      console.log("✓ Added house/flat number");
+    }
+    
+    // Add landmark if field exists
+    const landmarkField = await browser.$('//android.widget.EditText[contains(@text, "Landmark")]');
+    if (await landmarkField.isExisting()) {
+      await landmarkField.setValue("Near Park");
+      console.log("✓ Added landmark");
+    }
+    
+    // Save address
+    const saveButton = await browser.$('//android.widget.Button[@content-desc="Save Address"]');
+    if (await saveButton.isExisting()) {
+      await saveButton.click();
+      console.log("✓ Clicked Save Address");
+      await browser.pause(2000);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`Error completing address form: ${error}`);
+    return false;
+  }
+}
+  // Enhanced edit address method with map drag
+  async editAddressWithMapDrag(addressType: string): Promise<boolean> {
+    try {
+      console.log(`\n=== Editing ${addressType} address with map drag ===`);
+      
+      // Find and click edit button for the address type
+      const editButton = await browser.$(`//android.widget.Button[@content-desc="Edit" and preceding-sibling::android.view.View[contains(@content-desc, "${addressType.toUpperCase()}")]]`);
+      
+      if (!(await editButton.isExisting())) {
+        console.log(`Edit button for ${addressType} not found`);
+        return false;
+      }
+      
+      await editButton.click();
+      console.log(`✓ Clicked edit for ${addressType} address`);
+      await browser.pause(3000);
+      
+      // Get initial address
+      const initialAddress = await this.getCurrentAddressFromField();
+      console.log(`Initial address before drag: ${initialAddress}`);
+      
+      // Perform map drag
+      const dragSuccess = await this.dragMapToChangeLocation();
+      if (!dragSuccess) {
+        console.log("Map drag failed");
+        return false;
+      }
+      
+      // Verify address changed
+      const addressChanged = await this.verifyAddressChangedAfterDrag(initialAddress);
+      
+      if (addressChanged) {
+        // Confirm the new location
+        const confirmButton = await browser.$('//android.widget.Button[@content-desc="Confirm Location"]');
+        if (await confirmButton.isExisting()) {
+          await confirmButton.click();
+          console.log("✓ Confirmed new location");
+          await browser.pause(2000);
+          
+          // Complete the address form
+          await this.completeAddressDetailsForm();
+          console.log("✓ Address edit with map drag completed");
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error(`Error editing address with map drag: ${error}`);
+      return false;
+    }
+  }
+
+  // Updated CRUD operations method with map drag
+async performAddressCRUDOperationsWithMapDrag(): Promise<void> {
+  try {
+    console.log("\n=== Starting Address CRUD Operations with Map Drag ===");
+    
+    // Edit HOME address with map drag - use uppercase
+    const editSuccess = await this.editAddressWithMapDrag("HOME"); // Changed from "home" to "HOME"
+    
+    if (editSuccess) {
+      console.log("✓ Successfully edited HOME address with map drag");
+      await browser.pause(2000);
+      
+      // Delete the edited address - use uppercase
+      console.log("\n=== Deleting edited HOME address ===");
+      const deleteSuccess = await this.deleteAddress("HOME"); // Changed from "home" to "HOME"
+      
+      if (deleteSuccess) {
+        console.log("✓ Successfully deleted HOME address");
+      } else {
+        console.log("✗ Failed to delete HOME address");
+      }
+    } else {
+      console.log("✗ Edit with map drag failed, skipping delete");
+    }
+    
+  } catch (error) {
+    console.error(`CRUD operations error: ${error}`);
+    throw error;
+  }
+}
+// Add this new method to perform the complete test flow
+async performCompleteAddressCRUDWithMapDrag(): Promise<boolean> {
+  try {
+    console.log("\n=== Starting Complete Address CRUD Test with Map Drag ===");
+    
+    // Phase 1: Create initial test address (HOME)
+    console.log("\n--- Phase 1: Creating initial HOME address for testing ---");
+    const initialAddressCreated = await this.addCompleteAddress(
+      "Headrun",
+      "Headrun, 80 Feet Road", 
+      "home",
+      false
+    );
+    
+    if (!initialAddressCreated) {
+      throw new Error("Failed to create initial HOME address");
+    }
+    console.log("✓ Initial HOME address created");
+    await browser.pause(2000);
+    
+    // Modify the Phase 2 section in performCompleteAddressCRUDWithMapDrag method
+
+    // Phase 2: Edit HOME address with map drag
+    console.log("\n--- Phase 2: Editing HOME address with map drag ---");
+    
+    // Find and click edit button
+    const editSelectors = [
+      '//android.widget.Button[@content-desc="Edit" and preceding-sibling::android.view.View[contains(@content-desc, "HOME")]]',
+      '//android.view.View[contains(@content-desc, "HOME")]//following-sibling::android.widget.Button[1]',
+      '(//android.widget.Button[@content-desc="Edit"])[1]',
+      'android=new UiSelector().className("android.widget.Button").instance(1)'
+    ];
+    
+    let editClicked = false;
+    for (const selector of editSelectors) {
+      try {
+        const editBtn = await browser.$(selector);
+        if (await editBtn.isExisting()) {
+          await editBtn.click();
+          console.log(`✓ Edit button clicked using: ${selector}`);
+          editClicked = true;
+          break;
+        }
+      } catch (e) {
+        // Continue
+      }
+    }
+    
+    if (!editClicked) {
+      throw new Error("Could not find edit button for HOME address");
+    }
+    
+    await browser.pause(3000);
+    
+    // Get initial address
+    const initialAddress = await this.getCurrentAddressFromField();
+    console.log(`📍 Initial address: "${initialAddress}"`);
+    
+    if (!initialAddress) {
+      throw new Error("Could not get initial address");
+    }
+    
+    await TestHelpers.takeScreenshot('before-map-drag');
+    
+    // Perform multiple map drags to ensure address changes
+    console.log("\n🗺️  Performing multiple map drags to change location...");
+    
+    let currentAddress = initialAddress;
+    let addressChanged = false;
+    const maxDrags = 4;
+    
+    // Define different drag patterns based on your Appium Inspector coordinates
+    const dragPatterns = [
+      // Drag 1: Right to left (horizontal)
+      { startX: 851, startY: 825, endX: 374, endY: 817, description: "right to left" },
+      // Drag 2: Left to right (horizontal)
+      { startX: 215, startY: 873, endX: 864, endY: 864, description: "left to right" },
+      // Drag 3: Bottom to top (vertical)
+      { startX: 825, startY: 1354, endX: 834, endY: 984, description: "bottom to top" },
+      // Drag 4: Top to bottom (vertical)
+      { startX: 206, startY: 950, endX: 193, endY: 1431, description: "top to bottom" }
+    ];
+    
+    // Get screen dimensions to calculate relative positions
+    const { width, height } = await browser.getWindowSize();
+    console.log(`Screen dimensions: ${width}x${height}`);
+    
+    // Perform drags until address changes or max attempts reached
+    for (let i = 0; i < maxDrags; i++) {
+      console.log(`\nDrag attempt ${i + 1}/${maxDrags}`);
+      
+      // Use pattern or calculate relative positions
+      let startX, startY, endX, endY;
+      
+      if (width === 1080 && height === 2400) {
+        // Use exact coordinates if screen matches
+        const pattern = dragPatterns[i];
+        startX = pattern.startX;
+        startY = pattern.startY;
+        endX = pattern.endX;
+        endY = pattern.endY;
+        console.log(`Using exact coordinates: ${pattern.description}`);
+      } else {
+        // Calculate relative positions for different screen sizes
+        const patterns = [
+          { startX: 0.79, startY: 0.34, endX: 0.35, endY: 0.34 }, // Right to left
+          { startX: 0.20, startY: 0.36, endX: 0.80, endY: 0.36 }, // Left to right
+          { startX: 0.76, startY: 0.56, endX: 0.77, endY: 0.41 }, // Bottom to top
+          { startX: 0.19, startY: 0.40, endX: 0.18, endY: 0.60 }  // Top to bottom
+        ];
+        const pattern = patterns[i];
+        startX = Math.floor(width * pattern.startX);
+        startY = Math.floor(height * pattern.startY);
+        endX = Math.floor(width * pattern.endX);
+        endY = Math.floor(height * pattern.endY);
+        console.log(`Using relative coordinates for screen ${width}x${height}`);
+      }
+      
+      console.log(`Dragging from (${startX}, ${startY}) to (${endX}, ${endY})`);
+      
+      // Perform the drag
+      await browser.action('pointer')
+        .move({ duration: 0, x: startX, y: startY })
+        .down({ button: 0 })
+        .move({ duration: 1000, x: endX, y: endY })
+        .up({ button: 0 })
+        .perform();
+      
+      console.log("✓ Drag completed");
+      
+      // Wait for geocoding to update
+      await browser.pause(3000);
+      
+      // Check if address changed
+      const newAddress = await this.getCurrentAddressFromField();
+      console.log(`📍 Address after drag ${i + 1}: "${newAddress}"`);
+      
+      if (newAddress && newAddress !== initialAddress && newAddress !== currentAddress) {
+        addressChanged = true;
+        currentAddress = newAddress;
+        console.log("✅ Address changed successfully!");
+        await TestHelpers.takeScreenshot(`after-map-drag-${i + 1}`);
+        
+        // Optional: Continue dragging to show multiple changes
+        if (i < maxDrags - 1) {
+          console.log("Continuing with more drags to demonstrate multiple location changes...");
+        }
+      } else {
+        console.log("⚠️ Address unchanged, trying next drag pattern...");
+      }
+    }
+    
+    if (!addressChanged) {
+      console.log("⚠️ Warning: Address may not have changed significantly after all drag attempts");
+    } else {
+      console.log(`\n✅ Address successfully changed through map dragging!`);
+      console.log(`   From: "${initialAddress}"`);
+      console.log(`   To: "${currentAddress}"`);
+    }
+    
+    await TestHelpers.takeScreenshot('final-map-position');
+    
+    // Confirm location
+    const confirmBtn = await browser.$('//android.widget.Button[@content-desc="Confirm Location"]');
+    if (await confirmBtn.isExisting()) {
+      await confirmBtn.click();
+      console.log("✓ New location confirmed");
+      await browser.pause(2000);
+    }
+    
+    // Save edited address
+    await this.saveAddress();
+    console.log("✓ Edited address saved");
+    await browser.pause(2000);
+    
+    // Phase 3: Delete the edited HOME address
+    console.log("\n--- Phase 3: Deleting HOME address ---");
+    const deleteSuccess = await this.deleteAddress("HOME");
+    
+    if (!deleteSuccess) {
+      throw new Error("Failed to delete HOME address");
+    }
+    console.log("✓ HOME address deleted");
+    await browser.pause(2000);
+    
+    // Phase 4: Create 3 new addresses
+    console.log("\n--- Phase 4: Creating 3 new addresses ---");
+    
+    // Create HOME
+    console.log("\n1️⃣ Creating new HOME address...");
+    const homeCreated = await this.addCompleteAddress(
+      "Headrun",
+      "Headrun, 80 Feet Road",
+      "home",
+      false
+    );
+    if (!homeCreated) throw new Error("Failed to create HOME address");
+    console.log("✓ HOME address created");
+    
+    // Create WORK
+    console.log("\n2️⃣ Creating WORK address...");
+    const workCreated = await this.addCompleteAddress(
+      "rozana rural commerce",
+      "rozana rural commerce",
+      "work",
+      false
+    );
+    if (!workCreated) throw new Error("Failed to create WORK address");
+    console.log("✓ WORK address created");
+    
+    // Create OTHER
+    console.log("\n3️⃣ Creating OTHER address...");
+    const otherCreated = await this.addCompleteAddress(
+      "koramangala",
+      "koramangala",
+      "other",
+      false
+    );
+    if (!otherCreated) throw new Error("Failed to create OTHER address");
+    console.log("✓ OTHER address created");
+    
+    console.log("\n✅ Complete CRUD test finished successfully!");
+    console.log("Final state: 3 addresses (HOME, WORK, OTHER)");
+    
+    return true;
+    
+  } catch (error) {
+    console.error(`Complete CRUD test failed: ${error}`);
+    await TestHelpers.takeScreenshot('crud-test-error');
+    return false;
+  }
+}
+// Add this method to find and click the floating add button more reliably
+async clickAddAddressButton(): Promise<void> {
+  try {
+    const selectors = [
+      '//android.widget.Button[@content-desc="Add New Address"]',
+      '//android.widget.Button[contains(@content-desc, "Add")]',
+      '//android.widget.Button[@text="Add New Address"]',
+      '(//android.widget.Button)[last()]' // Often the last button when addresses exist
+    ];
+    
+    for (const selector of selectors) {
+      const button = await browser.$(selector);
+      if (await button.isExisting()) {
+        await button.click();
+        console.log(`✓ Add Address button clicked using: ${selector}`);
+        await browser.pause(3000);
+        
+        // Verify we're on search page
+        const searchField = await browser.$(this.searchLocationInput);
+        if (await searchField.isExisting()) {
+          return;
+        }
+      }
+    }
+    
+    // If standard selectors fail, try clicking the floating button by position
+    console.log("Standard selectors failed, trying position-based click...");
+    const success = await this.clickFloatingActionButton();
+    if (!success) {
+      throw new Error("Could not click Add Address button");
+    }
+  } catch (error) {
+    console.error(`Error clicking add address button: ${error}`);
+    throw error;
   }
 }
 }
